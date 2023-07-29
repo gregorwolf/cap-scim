@@ -1,0 +1,3813 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Identity Directory Service
+  description: |-
+    The identity directory provides a System for Cross-domain Identity Management (SCIM) 2.0 REST API for managing resources (users, groups and custom schemas). Consumers of this REST API should be familiar with System for Cross-domain Identity Management Protocol before managing their own resources. For more information, see [RFC 7643](https://tools.ietf.org/html/rfc7644).
+
+    The identity directory service supports both basic and certificate authentication.
+    * Special characters are not supported in the certificate distinguished name.
+x-sap-shortText: Manage users, groups and custom schemas in the cloud.
+security:
+- BasicAuth: []
+- Certificate: []
+servers:
+- url: https://{tenant}.{host}/scim
+  description: Identity Directory service endpoint
+  variables:
+    tenant:
+      description: Identity Authentication tenant
+      default: tenant
+    host:
+      description: Identity Authentication service host
+      default: accounts.ondemand.com
+tags:
+- name: Users
+  description: Retrieve, create, modify and delete a user resource.
+- name: Groups
+  description: Retrieve, create, modify and delete a group resource.
+- name: Schemas
+  description: Retrieve, create and delete a resource's schema.
+- name: Bulk
+  description: Create, modify and delete user and group resources in bulk
+paths:
+  /Users:
+    get:
+      tags:
+      - Users
+      summary: Retrieves a user resource.
+      description: Retrieves a list of users. Filter and paging parameters can be combined.
+      operationId: getUsers
+      parameters:
+      - name: filter
+        in: query
+        description: |
+          Defines the search criteria. Supports up to 90 operands by unique attribute per request. It is not recommended to use more than 50 operands per request due to the database limitations.
+          Supported operators:
+          | Operator | Behavior |
+          |---- | ------------- |
+          | eq | The attribute and operator values must be identical for a match.|
+          | ne | The attribute and operator values must not be identical for a match.|
+          | co | The attribute must contain the operator values for a match. Due to database limitations, "co" operator execution is sometimes slower than expected and may result in timeout response. It is not recommended to use several "co" operator or combine  them with other operators in a same query. Contains operator cannot be used for filtering by master data attributes.|
+          | gt | If the attribute value is greater than the operator value, there is a match. The actual comparison is dependent on the attribute type. For string attribute types, this is a lexicographical comparison, and for DateTime types, it is a chronological comparison. For integer attributes, it is a comparison by numeric value.|
+          | lt | If the attribute value is less than the operator value, there is a match. The actual comparison is dependent on the attribute type. For string attribute types, this is a lexicographical comparison, and for DateTime types, it is a chronological comparison. For integer attributes, it is a comparison by numeric value.|
+          | and | The filter is only a match if both expressions evaluate to true.|
+          | or | The filter is a match if one of both expressions evaluate to true.|
+          ### Supported User Search Attributes:
+          #### Core Schema
+            * id
+            * externalId
+            * userName
+            * userType
+
+          Filtering based on an empty userName attribute is supported, the returned list then contains users whose userName attribute is either missing or equal to "". When filtering by phoneNumbers.value which contains reserved characters like "+", the filter request parameter should be URI encoded.
+
+            * emails.value
+            * phoneNumbers.value
+            * roles.value
+            * groups.display
+            * addresses.locality
+            * addresses.region
+            * addresses.postalCode
+            * addresses.country
+            * displayName
+            * meta.lastModified
+
+          #### Enterprise user resource schema
+            * employeeNumber
+            * costCenter
+            * organization
+            * division
+            * department
+            * manager.value
+
+          All Enterprise user resource schema attributes require the schema URI urn:ietf:params:scim:schemas:extension:enterprise:2.0:User and the attribute name. For example: urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:costCenter
+          #### SAP extension schema
+            * userUuid
+            * validFrom
+            * validTo
+            * totpEnabled
+            * webAuthEnabled
+            * mfaEnabled
+
+          All SAP extension schema attributes require the schema URI urn:ietf:params:scim:schemas:extension:sap:2.0:User and the attribute name. For example: urn:ietf:params:scim:schemas:extension:sap:2.0:User:userUuid
+        required: false
+        schema:
+          type: string
+        examples:
+          smith:
+            value: emails.value eq "john.smith@sap.com" and addresses.country eq "US"
+            summary: Search by email and country.
+          costCenter:
+            value: urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:costCenter eq "1234"
+            summary: Search by cost center.
+          phoneNumbers:
+            value: phoneNumbers.value eq "%2B3 5988 691-7564"
+            summary: Search by phoneNumbers.value.
+      - name: startId
+        in: query
+        description: |
+          Used for Id-Based pagination (recommended). Page through users by specifying `startId` parameter.
+          Possible values:
+          | Value | Description |
+          |------------ | ------------- |
+          | `initial`| If initial value is specified, the initial user is returned as the first entry of the query result. |
+          | `<user ID>` | If `<user id>` value is specified, the user with this user ID is returned as the first entry of the query result.|
+        required: false
+        schema:
+          type: string
+        examples:
+          initial:
+            value: emails.value eq "john.smith@sap.com"&startId=initial
+            summary: Search by email using initial id.
+          Id:
+            value: startId=30291f26-1a74-4e61-bf27-ed29f579d45d&count=5
+            summary: Search by user id.
+      - name: startIndex
+        in: query
+        description: |
+          Represents the start index from which the results are returned. Default value is 1. A value less than 1 is interpreted as 1.
+        required: false
+        schema:
+          type: string
+        examples:
+          initial:
+            value: emails.value eq "john.smith@sap.com"&startIndex=6&count=5
+            summary: Search by email using start index.
+      - name: count
+        in: query
+        description: Represents the number of items which will be returned per page. A negative value is interpreted as 0. A value of 0 indicates that no resource results are to be returned. Default and maximum value is 100. If you provide a number that is greater than 100, for example 1000, the returned results per page will be 100.
+        required: false
+        schema:
+          type: integer
+      - name: attributes
+        in: query
+        required: false
+        description: See GET /Users/{Id} parameter 'attributes'
+        schema:
+          type: string
+      - name: excludedAttributes
+        in: query
+        required: false
+        description: See GET /Users/{Id} parameter 'excludedAttributes'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The user resource is retrieved successfully. The maximum number of returned user's groups per request is 1000.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/SearchResult'
+              examples:
+                searchByIndex:
+                  description: |
+                    The following paging attributes are returned in the response:
+                    | Value | Description |
+                    |------------ | ------------- |
+                    | totalResults | Specifies the total number of results matching the query, for example: 100. |
+                    | itemsPerPage | Specifies the number of query results returned in a query response page, for example: 3.|
+                    | startIndex | The 1-based index of the first result in the current set of query results, for example: 1.|
+                  value:
+                    Resources:
+                    - id: 4609edbc-679e-428b-a06d-11e1f57443aa
+                      externalId: user1
+                      meta:
+                        created: '2020-10-26T16:03:49Z'
+                        lastModified: '2020-10-26T16:03:49Z'
+                        location: https://agsecgqdp.accounts400.ondemand.com/scim/Users/4609edbc-679e-428b-a06d-11e1f57443aa
+                        version: 0e7c79a2-bfc7-4080-8a75-bc2e4f00af26
+                        resourceType: User
+                      schemas:
+                      - urn:ietf:params:scim:schemas:core:2.0:User
+                      - urn:ietf:params:scim:schemas:extension:enterprise:2.0:User
+                      - urn:ietf:params:scim:schemas:extension:sap:2.0:User
+                      userName: user1
+                      name:
+                        formatted: Mr John Doe I
+                        familyName: user1
+                        givenName: John
+                        middleName: Doe
+                        honorificPrefix: Mr.
+                        honorificSuffix: I
+                      displayName: John Doe
+                      nickName: Johnie
+                      profileUrl: https://www.sap.com
+                      title: King
+                      userType: Employee
+                      timezone: Europe/Sofia
+                      active: true
+                      emails:
+                      - value: john.doe@sap.com
+                        display: John Doe
+                        primary: true
+                        type: work
+                      addresses:
+                      - streetAddress: string
+                        locality: string
+                        region: string
+                        postalCode: string
+                        country: string
+                        type: string
+                        primary: true
+                      phoneNumbers:
+                      - value: 555-123-456
+                        primary: false
+                        type: work
+                      - value: 555-123-333
+                        primary: true
+                        type: mobile
+                      urn:ietf:params:scim:schemas:extension:sap:2.0:User:
+                        userId: P000000
+                        userUuid: 4609edbc-679e-428b-a06d-11e1f57443aa
+                        loginTime: '2020-10-26T10:54:59Z'
+                        sourceSystem: 15
+                        sourceSystemId: sourceSystem1
+                        status: active
+                        industry: Chemicals
+                        addresses:
+                        - streetAddress: string
+                          streetAddress2: string
+                          locality: string
+                          region: string
+                          postalCode: string
+                          country: string
+                          type: string
+                          primary: true
+                        passwordDetails:
+                          loginTime: '2020-10-26T10:54:59Z'
+                          failedLoginAttempts: 0
+                          setTime: '2020-10-22T07:49:38Z'
+                          status: enabled
+                          policy: https://accounts.sap.com/policy/passwords/sap/enterprise/1.0
+                        corporateGroups:
+                        - value: string
+                      urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:
+                        division: X
+                        manager:
+                          value: d478473e-af5f-45dc-977c-8447313216dc
+                          $ref: https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc
+                          displayName: James
+                        costCenter: '4130'
+                        organization: Manufacturing company
+                        department: Marketing
+                        employeeNumber: '751988'
+                    totalResults: 12014
+                    itemsPerPage: 1
+                    startIndex: 1
+                    schemas:
+                    - urn:ietf:params:scim:api:messages:2.0:ListResponse
+                searchById:
+                  description: |
+                    The following paging attributes are returned in the response:
+                    | Value | Description |
+                    |------------ | ------------- |
+                    | totalResults | Specifies the total number of results matching the query, for example: 100. |
+                    | itemsPerPage | Specifies the number of query results returned in a query response page, for example: 3.|
+                    | startId | Specifies the first entry of the query result, for example: initial or `<user id>`.|
+                    | nextId | Specifies the next user id (that is, the id of the first user on the next page). For example: `<user id>` or `<end>`. The `<end>` value indicates that the last user of the total number of users matching the query is returned. |
+                  value:
+                    Resources:
+                    - id: 4609edbc-679e-428b-a06d-11e1f57443aa
+                      externalId: user1
+                      meta:
+                        created: '2020-10-26T16:03:49Z'
+                        lastModified: '2020-10-26T16:03:49Z'
+                        location: https://agsecgqdp.accounts400.ondemand.com/scim/Users/4609edbc-679e-428b-a06d-11e1f57443aa
+                        version: 0e7c79a2-bfc7-4080-8a75-bc2e4f00af26
+                        resourceType: User
+                      schemas:
+                      - urn:ietf:params:scim:schemas:core:2.0:User
+                      - urn:ietf:params:scim:schemas:extension:enterprise:2.0:User
+                      - urn:ietf:params:scim:schemas:extension:sap:2.0:User
+                      userName: user1
+                      name:
+                        formatted: Mr John Doe I
+                        familyName: user1
+                        givenName: John
+                        middleName: Doe
+                        honorificPrefix: Mr.
+                        honorificSuffix: I
+                      displayName: John Doe
+                      nickName: Johnie
+                      profileUrl: https://www.sap.com
+                      title: King
+                      userType: Employee
+                      timezone: Europe/Sofia
+                      active: true
+                      emails:
+                      - value: john.doe@sap.com
+                        display: John Doe
+                        primary: true
+                        type: work
+                      phoneNumbers:
+                      - value: 555-123-456
+                        primary: false
+                        type: work
+                      - value: 555-123-333
+                        primary: true
+                        type: mobile
+                      urn:ietf:params:scim:schemas:extension:sap:2.0:User:
+                        userId: P000000
+                        userUuid: 4609edbc-679e-428b-a06d-11e1f57443aa
+                        loginTime: '2020-10-26T10:54:59Z'
+                        sourceSystem: 15
+                        sourceSystemId: sourceSystem1
+                        passwordDetails:
+                          loginTime: '2020-10-26T10:54:59Z'
+                          failedLoginAttempts: 0
+                          setTime: '2020-10-22T07:49:38Z'
+                          status: enabled
+                          policy: https://accounts.sap.com/policy/passwords/sap/enterprise/1.0
+                      urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:
+                        division: X
+                        manager:
+                          value: d478473e-af5f-45dc-977c-8447313216dc
+                          $ref: https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc
+                          displayName: James
+                        costCenter: '4130'
+                        organization: Manufacturing company
+                        department: Marketing
+                        employeeNumber: '751988'
+                    totalResults: 12014
+                    itemsPerPage: 1
+                    startId: initial
+                    nextId: 000e2582-317e-4cb0-82b4-89de7ad660c6
+                    schemas:
+                    - urn:ietf:params:scim:api:messages:2.0:ListResponse
+        '500':
+          $ref: '#/components/responses/500'
+    post:
+      tags:
+      - Users
+      summary: Creates a user resource.
+      description: |-
+        When creating a user, `schemas`, `userName` and `emails` attributes are required. A user must have a unique userName and primary email address. Depending on the Logon Alias configuration, the emails.value, userName and displayName attributes can be required or optional, and unique or non-unique. When you create a user, if one or more of these attributes are configured required and unique, the request payload must contain the respective attributes. <br><br> `Note :` If you want to assign group to a user then you should use groups end point. <br><br> `Note :` The status attribute in the SAP extension schema is consistent with the attribute active in the core schema. It supports the following values: "new", "active", "inactive". When you create  a user with attribute status, you should know that it needs to be synchronized with the attribute active. For example, if you create a user with status "new" or "inactive", the active attribute in the core schema must be false. Similarly, if the user will be with status "active", the active attribute must be true. <br><br> `Note :` When you create a user and the `sendMail` attribute from the extension schema is provided to the request body with value true, it means that you will receive an activation e-mail for the user. Also, if `targetUrl` is provided, but `sendMail` is false, the `targetUrl` value is ignored. <br><br> `Note :` The following attributes: salutations , functions , departments , relationships , industries , languages , countries are called master data attributes and have canonical values. The specific values for these attributes can be found on `<tenantUrl>/service/md/<attribute>` <br><br> `Note :` The `emails.value` subAttribute supports the following characters:
+          * uppercase and lowercase Latin letters
+          * digits from 0 to 9
+          * special characters !#$%&'*+-/=?^_`{|}~
+          * . - cannot be first or last character, or two or more consecutively, unless surrounded by quotation marks.
+          * space and the "(),:;<>@[\] characters can be used only if surrounded by quotation marks. The \ or " must be preceded by \
+
+        <br><br> `Note :` The following characters: <, >, : are not allowed for `name.givenName`, `name.familyName` and displayName
+      operationId: createUser
+      requestBody:
+        content:
+          application/scim+json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+      responses:
+        '201':
+          description: The user is created successfully.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: |
+            Wrong format or structure of the provided request body. Possible reasons:
+            - One of the given inputs is not valid (ex. emails, manager ID).
+            - The content of the body is not in valid format or cannot be parsed.
+            - A field is missing in any of the schemas.
+            - A mandatory attribute is missing.
+            - The values of some attribute are not synchronized in different extensions.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                Invalid input:
+                  value:
+                    status: 400
+                    schemas:
+                    - urn:ietf:params:scim:api:messages:2.0:Error
+                    detail: One of the given emails inputs is not valid!
+                Invalid fields:
+                  value:
+                    status: 400
+                    schemas:
+                    - urn:ietf:params:scim:api:messages:2.0:Error
+                    detail: Invalid fields.
+                Not synchronized values:
+                  value:
+                    status: 400
+                    schemas:
+                    - urn:ietf:params:scim:api:messages:2.0:Error
+                    detail: Values for attribute status are not synchronized in different extensions.
+        '409':
+          description: The created user does not fulfill the uniqueness criteria for userName or emails.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 409
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: A user with the same primary email already exists!
+        '500':
+          $ref: '#/components/responses/500'
+  /Users/{Id}:
+    get:
+      summary: Retrieves a specific user.
+      description: Retrieves a specific user by id.
+      operationId: getUser
+      tags:
+      - Users
+      parameters:
+      - name: Id
+        in: path
+        required: true
+        description: The ID of the user to be retrieved.
+        schema:
+          type: string
+      - name: attributes
+        in: query
+        required: false
+        description: A multi-valued list that indicates attributes names in standard notation to return in the response, overriding the set of attributes that would be returned by default, except minimal User representation which is always returned. When attribute 'groups' is part of the attributes, then id or index paging shall be used in the query. Attributes and excludedAttributes are mutually exclusive. Attributes are prioritized over excludedAttributes when both of them are present in the same request.
+        schema:
+          type: string
+        examples:
+          id_page:
+            value: groups[startId=initial&count=100]
+            summary: Get user's groups by id paging
+            description: This value is used to query the groups of the user using `startId` and `count`. The same rules apply when using standard resource paging.
+          index_page:
+            value: groups[startIndex=1&count=100]
+            summary: Get user's groups by index paging
+            description: This value is used to query the groups of the user using `startIndex` and `count`. The same rules apply when using standard resource paging.
+          multivalue_non_qualified:
+            value: emails.value
+            summary: Get user's emails values
+            description: This value is used to query only the value of the multivalue attribute emails of the user using non-qualified standard sub-attribute notation.
+          fully_qualified:
+            value: urn:ietf:params:scim:schemas:core:2.0:User:name
+            summary: Get full name object of the user
+            description: This value is used to query the name and its sub-attributes of the user described in schema urn:ietf:params:scim:schemas:core:2.0:User using fully qualified attribute notation.
+          multiple_attributes:
+            value: name,emails,displayName
+            summary: Get a few user attributes of the user
+            description: This attributes filter is used to query the name, emails and their sub-attributes along with the displayName of the user.
+      - name: excludedAttributes
+        in: query
+        required: false
+        description: A multi-valued list that indicates attributes names in standard notation to exclude from the response, overriding the set of attributes that would be returned by default, except minimal User representation which is always returned. Attributes and excludedAttributes are mutually exclusive. Attributes are prioritized over excludedAttributes when both of them are present in the same request.
+        schema:
+          type: string
+        examples:
+          multivalue_non_qualified:
+            value: emails
+            summary: Exclude full object emails from the user
+            description: This value is used to query user resource without attribute emails of the user using non-qualified standard sub-attribute notation.
+          fully_qualified:
+            value: urn:ietf:params:scim:schemas:core:2.0:User:name
+            summary: Exclude full object name of the user
+            description: This value is used to query user resource without attribute name and its sub-attributes of the user described in schema urn:ietf:params:scim:schemas:core:2.0:User using fully qualified attribute notation.
+          multiple_attributes:
+            value: name,emails,displayName
+            summary: Exclude a few user attributes of the user
+            description: This attributes filter is used to query user resource without the name, emails and their sub-attributes along with the displayName of the user.
+      responses:
+        '200':
+          description: The identified user is retrieved successfully. The maximum number of returned user's groups per request is 1000. To read the rest of the user's groups, paging must be used.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/User'
+              examples:
+                DefaultUserResponse:
+                  $ref: '#/components/examples/DefaultUserResponse'
+                UserGroupsPageByIndex:
+                  $ref: '#/components/examples/UserGroupsPageByIndex'
+                UserGroupsPageById:
+                  $ref: '#/components/examples/UserGroupsPageById'
+                EmailsValuesAttributesUserResponse:
+                  $ref: '#/components/examples/EmailsValuesAttributesUserResponse'
+                AddressesValuesAttributesUserResponse:
+                  $ref: '#/components/examples/AddressesValuesAttributesUserResponse'
+                FullyQualifiedNameAttributesUserResponse:
+                  $ref: '#/components/examples/FullyQualifiedNameAttributesUserResponse'
+                FewAttributesUserResponse:
+                  $ref: '#/components/examples/FewAttributesUserResponse'
+                ExcludedAttributesEmailsUserResponse:
+                  $ref: '#/components/examples/ExcludedAttributesEmailsUserResponse'
+                ExcludedAttributesNameUserResponse:
+                  $ref: '#/components/examples/ExcludedAttributesNameUserResponse'
+                ExcludedFewAttributesUserResponse:
+                  $ref: '#/components/examples/ExcludedFewAttributesUserResponse'
+        '400':
+          description: The provided identifier is not valid.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: '"asdf" is not a valid identifier!'
+        '404':
+          description: The user with the provided ID does not exist.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: User <user_id> not found!
+        '500':
+          $ref: '#/components/responses/500'
+    put:
+      tags:
+      - Users
+      summary: Updates all attributes of a user.
+      description: Updates a user by **replacing** its attributes. In case not provided - all non mandatory attributes will be **erased**. <br><br> `Note :` If you want to update user groups then you should use groups end point
+      operationId: updateUser
+      parameters:
+      - name: Id
+        in: path
+        required: true
+        description: The ID of the user to be updated.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/scim+json:
+            schema:
+              $ref: '#/components/schemas/User'
+            examples:
+              setCustomSchemaAttribute:
+                value:
+                  id: <uuid>
+                  schemas:
+                  - urn:ietf:params:scim:schemas:core:2.0:User
+                  - <custom schema urn e.g. urn:ietf:params:scim:schemas:extension:sci:2.0:Currency>
+                  userName: <userName>
+                  active: true
+                  emails:
+                  - value: <user email>
+                    primary: true
+                  urn:ietf:params:scim:schemas:extension:sci:2.0:Currency:
+                  - local: BGN
+                summary: Set custom Schema attribute to user resource.
+      responses:
+        '200':
+          description: The user is updated and returned successfully. The maximum number of returned user's groups per request is 1000.
+        '400':
+          description: A property value is not valid.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: One of the given emails inputs is not valid!
+        '404':
+          description: The user with the provided ID does not exist.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: User <user_id> not found!
+        '409':
+          description: The updated user does not fulfill the uniqueness criteria for certain fields.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 409
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: A user with the same primary email already exists!
+        '500':
+          $ref: '#/components/responses/500'
+    delete:
+      tags:
+      - Users
+      summary: Deletes a specific user.
+      description: Deletes a specific user by id and all his membership assignments.
+      operationId: deleteUser
+      parameters:
+      - name: Id
+        in: path
+        required: true
+        description: The ID of the user to be deleted.
+        schema:
+          type: string
+      responses:
+        '204':
+          description: The user is deleted successfully.
+        '400':
+          description: The provided identifier is not valid.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: '"asdf" is not a valid identifier!'
+        '404':
+          description: The user with the provided ID does not exist.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: User <user_id> not found!
+        '500':
+          $ref: '#/components/responses/500'
+    patch:
+      tags:
+      - Users
+      summary: Updates specific attributes of a user.
+      description: Updates one or more attributes of a user. Depending on the Logon Alias configuration, the e-mail, loginName and displayName attributes can be required or optional and unique or non-unique. When you update a user, if one or more of these attributes are configured as required and unique, the request payload must contains the respective attributes. If you want to execute a patch request, including replace operation for the emails, the choice of the email's primary field value which is passed to the patchbody, is significant. In case that you are passing an email with missing primary value through the replace operation or it is false, it will be set automatically to true. Also, if the emails in the patchbody are more than one and for each of them the primary value is missing or it is false, the last email's primary will be set to true and the others will be set to false. However, if you set one of the emails primary to true, all other emails primary value will be set automatically to false. For the phone attribute, only unique field can be changed. If it is enabled, we can't create or edit a user with phone number that already exists.
+      operationId: patchUser
+      parameters:
+      - name: Id
+        in: path
+        required: true
+        description: The ID of the user to be patched.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/scim+json:
+            schema:
+              $ref: '#/components/schemas/PatchBody'
+            examples:
+              add:
+                value:
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:PatchOp
+                  Operations:
+                  - op: add
+                    value:
+                      emails:
+                      - value: john.smith@sap.com
+                        type: home
+                summary: Add a home email.
+              addCorporateGroup:
+                value:
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:PatchOp
+                  Operations:
+                  - op: add
+                    path: urn:ietf:params:scim:schemas:extension:sap:2.0:User:corporateGroups
+                    value:
+                    - value: string
+                summary: Add a corporate group.
+              addUuid:
+                value:
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:PatchOp
+                  Operations:
+                  - op: add
+                    path: urn:ietf:params:scim:schemas:extension:sap:2.0:User:userUuid
+                    value: f9531e7c-67f2-4594-b978-a8e18fe31886
+                summary: Add a new userUuid.
+              removeAndAdd:
+                value:
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:PatchOp
+                  Operations:
+                  - op: remove
+                    path: emails[type eq "work" and value eq "john.smith@sap.com"]
+                  - op: add
+                    path: nickName
+                    value: John23
+                summary: Remove an email by type and value and add a nickname.
+              replaceWorkPhone:
+                value:
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:PatchOp
+                  Operations:
+                  - op: replace
+                    path: phoneNumbers[type eq "work" and value eq "123"]
+                    value:
+                    - value: '456'
+                      display: John Smith
+                      primary: false
+                      type: work
+                summary: Replace your work phone number with a new value.
+              replaceEmailWithPrimaryFalse:
+                value:
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:PatchOp
+                  Operations:
+                  - op: replace
+                    path: emails
+                    value:
+                    - value: john.smith@sap.com
+                      primary: false
+                summary: Replace an email with primary value false.
+              replaceEmailWithEmptyPrimary:
+                value:
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:PatchOp
+                  Operations:
+                  - op: replace
+                    path: emails
+                    value:
+                    - value: john.smith@sap.com
+                summary: Replace an email with empty primary value.
+              replaceAllEmailAttributesUsingExtensionSchema:
+                value:
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:PatchOp
+                  Operations:
+                  - op: replace
+                    path: urn:ietf:params:scim:schemas:extension:sap:2.0:User:emails
+                    value:
+                    - type: home
+                      value: john.smith@sap.com
+                      display: email4
+                      primary: true
+                      verified: true
+                summary: Replace email subattributes by using extension custom schema as a path.
+              replaceCorporateGroup:
+                value:
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:PatchOp
+                  Operations:
+                  - op: replace
+                    path: urn:ietf:params:scim:schemas:extension:sap:2.0:User:corporateGroups
+                    value:
+                    - value: string
+                summary: Replace corporate groups.
+              replaceMoreThanOneEmails:
+                value:
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:PatchOp
+                  Operations:
+                  - op: replace
+                    value:
+                      emails:
+                      - value: john.smith@sap.com
+                        type: home
+                        primary: true
+                      - value: john.smith2@sap.com
+                        type: work
+                        primary: false
+                summary: Replace more than one email of the user.
+      responses:
+        '204':
+          description: The user is updated successfully. If you are passing an email with missing primary value through the replace operation or it is false, it will be set automatically to true. In case you are setting the SAP  extension custom schema with an attribute as a path for replace operation, you should know that only the subattributes that are passed in the request body will be updated and the rest will be unchanged.
+        '400':
+          description: The provided identifier is not valid.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: '"asdf" is not a valid identifier!'
+        '404':
+          description: The user with the provided ID does not exist.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: User <user_id> not found!
+        '409':
+          description: The updated user does not fulfill the uniqueness criteria for certain fields.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 409
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: A user with the same primary email already exists!
+        '500':
+          $ref: '#/components/responses/500'
+  /Groups:
+    get:
+      tags:
+      - Groups
+      summary: Retrieves a group resource.
+      description: Retrieves a list of groups. Paging parameters are supported.
+      operationId: getGroups
+      parameters:
+      - name: filter
+        in: query
+        description: |-
+          Defines the search criteria. Possible attribute is displayName. Supports up to 90 operands by unique attribute per request. It is not recommended to use more than 50 operands per request due to the database limitations.
+          Supported operators:
+          | Operator | Behavior |
+          |---- | ------------- |
+          | eq | The attribute and operator values must be identical for a match.|
+          | ne | The attribute and operator values must not be identical for a match.|
+          | co | The attribute must contain the operator values for a match.|
+          | gt | If the attribute value is greater than the operator value, there is a match. The actual comparison is dependent on the attribute type. For string attribute types, this is a lexicographical comparison, and for DateTime types, it is a chronological comparison. For integer attributes, it is a comparison by numeric value.|
+          | lt | If the attribute value is less than the operator value, there is a match. The actual comparison is dependent on the attribute type. For string attribute types, this is a lexicographical comparison, and for DateTime types, it is a chronological comparison. For integer attributes, it is a comparison by numeric value.|
+          | and | The filter is only a match if both expressions evaluate to true.|
+          | or | The filter is a match if one of both expressions evaluate to true.|
+          ### Supported Group Search Attributes:
+          #### Core Schema
+            * dispalyName
+            * externalId
+
+          #### Custom defined schema
+          All custom schema defined attributes require fully qualified attribute name. For example, urn:sap:cloud:scim:schemas:extension:custom:2.0:MyCustomSchema:CustomString
+          #### Internal Schemas
+            * urn:sap:cloud:scim:schemas:extension:custom:2.0:Group:additionalId
+            * urn:sap:cloud:scim:schemas:extension:custom:2.0:Group:name
+            * urn:ietf:params:scim:schemas:extension:sci:2.0:Authorization:applicationId
+            * urn:ietf:params:scim:schemas:extension:sci:2.0:Authorization:zoneId
+        required: false
+        schema:
+          type: string
+        examples:
+          smith:
+            value: displayName eq "Administrators"
+            summary: Search by displayName.
+          name:
+            value: urn:sap:cloud:scim:schemas:extension:custom:2.0:Group:name eq "test"
+            summary: Search by name.
+          additionalId:
+            value: urn:sap:cloud:scim:schemas:extension:custom:2.0:Group:additionalId eq "60ebebc3a2aef74f1bf81c63"
+            summary: Search by additionalId.
+          externalId:
+            value: externalId eq "admin_ext"
+            summary: Search by externalId.
+      - name: startId
+        in: query
+        description: |
+          Used for Id-Based pagination. Page through groups by specifying `startId` parameter.
+          Possible values:
+          | Value | Description |
+          |------------ | ------------- |
+          | `initial`| If initial value is specified, the initial group is returned as the first entry of the query result. |
+          | `<group ID>` | If `<group id>` value is specified, the group with this group ID is returned as the first entry of the query result.|
+        required: false
+        schema:
+          type: string
+        examples:
+          initial:
+            value: displayName eq "Administrators"&startId=initial
+            summary: Search by displayName using initial id.
+          Id:
+            value: startId=fd3d9e48-f7c0-4cb9-b364-1814ae9d99d4&count=5
+            summary: Search by group id.
+      - name: startIndex
+        in: query
+        description: |
+          Represents the start index from which the results are returned. Default value is 1. A value less than 1 is interpreted as 1.
+        required: false
+        schema:
+          type: string
+        examples:
+          initial:
+            value: displayName eq "Administrators"&startIndex=6&count=5
+            summary: Search by displayName using start index.
+      - name: count
+        in: query
+        description: Represents the number of items which will be returned per page. A negative value is interpreted as 0. A value of 0 indicates that no resource results are to be returned. Default value is 100.
+        required: false
+        schema:
+          type: integer
+      - name: attributes
+        in: query
+        required: false
+        description: See GET /Groups/{Id} parameter 'attributes'
+        schema:
+          type: string
+      - name: excludedAttributes
+        in: query
+        required: false
+        description: See GET /Groups/{Id} parameter 'excludedAttributes'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The group resource is retrieved successfully. The maximum number of returned members per request is 20 000.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/SearchResult'
+              examples:
+                searchById:
+                  description: |
+                    The following paging attributes are returned in the response:
+                    | Value | Description |
+                    |------------ | ------------- |
+                    | totalResults | Specifies the total number of results matching the query, for example: 100. |
+                    | itemsPerPage | Specifies the number of query results returned in a query response page, for example: 3.|
+                    | startId | Specifies the first entry of the query result, for example: initial or `<user id>`.|
+                    | nextId | Specifies the next user ID (that is, the ID of the first user on the next page). For example: `<user id>` or `<end>`. The `<end>` value indicates that the last user of the total number of users matching the query is returned.|
+                  value:
+                    Resources:
+                    - id: <group_id>
+                      meta:
+                        created: '2020-10-14T14:33:39Z'
+                        lastModified: '2020-10-14T14:33:39Z'
+                        location: https://tenant.testaccounts.ondemand.com/scim/Groups/<group_id>
+                        version: <version_id>
+                        resourceType: Group
+                      schemas:
+                      - urn:ietf:params:scim:schemas:core:2.0:Group
+                      - urn:sap:cloud:scim:schemas:extension:custom:2.0:Group
+                      displayName: Tour Guides1
+                      members:
+                      - value: <member_id>
+                        $ref: https://tenant.testaccounts.ondemand.com/scim/Users/<member_id>
+                        type: User
+                    totalResults: 1
+                    itemsPerPage: 100
+                    startIndex: 1
+                    schemas:
+                    - urn:ietf:params:scim:api:messages:2.0:ListResponse
+                searchByIndex:
+                  description: |
+                    The following paging attributes are returned in the response:
+                    | Value | Description |
+                    |------------ | ------------- |
+                    | totalResults | Specifies the total number of results matching the query, for example: 100. |
+                    | itemsPerPage | Specifies the number of query results returned in a query response page, for example: 3.|
+                    | startIndex | The 1-based index of the first result in the current set of query results, for example: 1.|
+                  value:
+                    Resources:
+                    - id: 9eda8cdd-f612-494e-8bcd-4384f2b05317
+                      meta:
+                        created: '2020-10-27T15:45:39Z'
+                        lastModified: '2020-10-27T15:45:39Z'
+                        location: https://agsecgqdp.accounts400.ondemand.com/scim/Groups/9eda8cdd-f612-494e-8bcd-4384f2b05317
+                        version: 58521c4d-4020-48d3-94bb-fa6783aa489b
+                        resourceType: Group
+                      schemas:
+                      - urn:ietf:params:scim:schemas:core:2.0:Group
+                      - urn:sap:cloud:scim:schemas:extension:custom:2.0:Group
+                      displayName: Tour Guides1
+                      urn:sap:cloud:scim:schemas:extension:custom:2.0:Group:
+                        name: 9eda8cdd-f612-494e-8bcd-4384f2b05317
+                        additionalId: 5f9840a345404f359f3c7fbd
+                    totalResults: 23
+                    itemsPerPage: 1
+                    startIndex: 2
+                    schemas:
+                    - urn:ietf:params:scim:api:messages:2.0:ListResponse
+        '500':
+          $ref: '#/components/responses/500'
+    post:
+      tags:
+      - Groups
+      summary: Creates a group resource.
+      description: A group can contain users or other groups. When creating a group, `schemas` and `displayName` attributes are required. If you add members to the group, the value (UUID) attribute of the member is required, while all other attributes of the member are optional.
+      operationId: createGroup
+      requestBody:
+        content:
+          application/scim+json:
+            schema:
+              $ref: '#/components/schemas/Group'
+      responses:
+        '201':
+          description: The group is created successfully. The maximum number of returned members per request is 20 000.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '400':
+          description: |
+            Wrong format or structure of the provided request body. Possible
+            reasons:
+
+            - The content of the body is not in valid format or cannot be
+            parsed.
+
+            - A field is missing in any of the schemas.
+
+            - A mandatory attribute is missing.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                value:
+                  status: 400
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:Error
+                  detail: Invalid fields.
+        '500':
+          $ref: '#/components/responses/500'
+  /Groups/{Id}:
+    get:
+      tags:
+      - Groups
+      summary: Retrieves a specific group.
+      description: Retrieves a group by id.
+      operationId: getGroup
+      parameters:
+      - name: Id
+        in: path
+        required: true
+        description: The ID of the group to be retrieved.
+        schema:
+          type: string
+      - name: attributes
+        in: query
+        required: false
+        description: A multi-valued list that indicates attributes names in standard notation to return in the response, overriding the set of attributes that would be returned by default, except minimal Group representation which is always returned. When attribute 'members' is part of the attributes, then id or index paging shall be used in the query.
+        schema:
+          type: string
+        examples:
+          id_page:
+            value: members[startId=initial&count=100]
+            summary: Get members by id paging
+            description: This value is used to query the members of the group using `startId` and `count`. The same rules apply when using standard resource paging.
+          index_page:
+            value: members[startIndex=1&count=100]
+            summary: Get members by index paging
+            description: This value is used to query the members of the group using `startIndex` and `count`. The same rules apply when using standard resource paging.
+          members_values:
+            value: members.value
+            summary: Get only members values
+            description: This value is used to query only the value attribute of members of the group.
+      - name: excludedAttributes
+        in: query
+        required: false
+        description: A multi-valued list that indicates attributes names in standard notation to exclude from the response, overriding the set of attributes that would be returned by default, except minimal Group representation which is always returned.
+        schema:
+          type: string
+        examples:
+          exclude_members:
+            value: members
+            summary: Get only group attributes excluding members
+            description: This value is used to query the the group attributes excluding members list.
+      responses:
+        '200':
+          description: The group is retrieved successfully. The maximum number of returned members per request is 20 000. To read the rest of the members, paging must be used.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/Group'
+              examples:
+                DefaultGroupResponse:
+                  $ref: '#/components/examples/DefaultGroupResponse'
+                MembersPageByIndex:
+                  $ref: '#/components/examples/MembersPageByIndex'
+                MembersPageById:
+                  $ref: '#/components/examples/MembersPageById'
+                MembersValueGroupResponse:
+                  $ref: '#/components/examples/MembersValueGroupResponse'
+                ExcludedMembersGroupResponse:
+                  $ref: '#/components/examples/ExcludedMembersGroupResponse'
+        '400':
+          description: The provided identifier is not valid.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: '"asdf" is not a valid identifier!'
+        '404':
+          description: The group with the provided ID does not exist.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: Group  <user_id> not found!
+        '500':
+          $ref: '#/components/responses/500'
+    put:
+      tags:
+      - Groups
+      summary: Updates all attributes of a group.
+      description: Updates a group by replacing its existing attributes.
+      operationId: updateGroup
+      parameters:
+      - name: Id
+        in: path
+        required: true
+        description: The ID of the group to be updated.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/scim+json:
+            schema:
+              $ref: '#/components/schemas/Group'
+      responses:
+        '200':
+          description: The group is updated and returned successfully. The maximum number of returned members per request is 20 000.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '400':
+          description: The provided identifier or the update data is not valid.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: Invalid fields.
+        '404':
+          description: The group with the provided ID does not exist.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: Group  <user_id> not found!
+        '500':
+          $ref: '#/components/responses/500'
+    delete:
+      tags:
+      - Groups
+      summary: Deletes a specific group.
+      description: Deletes a group by id and revoke all its member assignments.
+      operationId: deleteGroup
+      parameters:
+      - name: Id
+        in: path
+        required: true
+        description: The ID of the group to be deleted.
+        schema:
+          type: string
+      responses:
+        '204':
+          description: The group is deleted successfully.
+        '400':
+          description: The provided identifier is not valid.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: '"asdf" is not a valid identifier!'
+        '404':
+          description: The group with the provided ID does not exist.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: Group <group_id> not found!
+        '500':
+          $ref: '#/components/responses/500'
+    patch:
+      tags:
+      - Groups
+      summary: Updates specific attributes of a group.
+      description: Updates one or more attributes of a group. If attribute, provided in path is non-qualified, then it will be qualified only with Group resource core schema urn:ietf:params:scim:schemas:core:2.0:Group. In case you want to add a group member through add operation, you need to provide the id of the user as a value of the relevant field in the patchbody.
+      operationId: patchGroup
+      parameters:
+      - name: Id
+        in: path
+        required: true
+        description: The ID of the group to be patched.
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/scim+json:
+            schema:
+              $ref: '#/components/schemas/PatchBody'
+            examples:
+              add:
+                summary: Add a group member.
+                value:
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:PatchOp
+                  Operations:
+                  - op: add
+                    path: members
+                    value:
+                    - value: c7fcdd8c-a280-40f6-9b6b-ecffc512dcd2
+              remove:
+                summary: Remove group members by their value attribute.
+                value:
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:PatchOp
+                  Operations:
+                  - op: remove
+                    path: members[value eq "c7fcdd8c-a280-40f6-9b6b-ecffc512dcd2" or value eq "ae60d562-c5de-4495-b3be-89a81eb62eed" or value eq "7d7e6ec1-5bc0-4ee8-b4e3-09f2ac4a7930"]
+              replace:
+                summary: Replace a group member by its value attribute.
+                value:
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:PatchOp
+                  Operations:
+                  - op: replace
+                    path: members[value eq "c7fcdd8c-a280-40f6-9b6b-ecffc512dcd2"]
+                    value:
+                    - display: John Doe
+                      value: 0cfb38b2-3b8a-4b32-ac3e-3c6d1566991b
+      responses:
+        '204':
+          description: The group is updated successfully.
+        '400':
+          description: The provided identifier is not valid.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: '"asdf" is not a valid identifier!'
+        '404':
+          description: The group with the provided ID does not exist.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: Group <user_id> not found!
+        '500':
+          $ref: '#/components/responses/500'
+  /Schemas:
+    get:
+      tags:
+      - Schemas
+      summary: Retrieves a list of all schemas.
+      description: Retrieves a list of all schemas with all permitted attributes and their characteristics.
+      operationId: getSchemas
+      responses:
+        '200':
+          description: Schemas are retrieved successfully.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/SearchResult'
+              example:
+                Resources:
+                - id: urn:sap:cloud:scim:schemas:extension:custom:2.0:CustomSchema
+                  meta:
+                    created: '2020-10-19T13:07:47.302Z'
+                    lastModified: '2020-10-19T13:07:47.302Z'
+                    location: https://tenant.testaccounts.ondemand.com/scim/Schemas/urn:sap:cloud:scim:schemas:extension:custom:2.0:CustomSchema
+                    version: <version_id>
+                    resourceType: Schema
+                  schemas:
+                  - urn:ietf:params:scim:schemas:core:2.0:Schema
+                  name: CustomSchema
+                  description: Custom schema description
+                  attributes:
+                  - name: customAttribute
+                    type: string
+                    multiValued: false
+                    description: Custom attribute description
+                    required: false
+                    caseExact: false
+                    mutability: readWrite
+                    returned: default
+                    uniqueness: none
+                totalResults: 1
+                itemsPerPage: 100
+                startIndex: 1
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:ListResponse
+        '500':
+          $ref: '#/components/responses/500'
+    post:
+      tags:
+      - Schemas
+      summary: Creates a custom schema.
+      description: |
+        When creating a schema, `id`, `name`, `attributes` and `schemas` attributes are required.
+        You can create up to 20 custom schemas, each of it containing a maximum number of 20 custom attributes
+        based on the supported data types.
+        The ID of the custom schema and the name of the custom attributes should not exceed 20 characters
+        (alphanumeric and underscore) without counting the prefix of the custom schema.
+      operationId: createSchema
+      requestBody:
+        content:
+          application/scim+json:
+            schema:
+              $ref: '#/components/schemas/Schema'
+            example:
+              id: urn:sap:cloud:scim:schemas:extension:custom:2.0:CustomSchema
+              schemas:
+              - urn:ietf:params:scim:schemas:core:2.0:Schema
+              name: CustomSchema
+              description: Custom schema description
+              attributes:
+              - name: customAttribute
+                type: string
+                multiValued: false
+                description: Custom attribute description
+                required: false
+                caseExact: false
+                mutability: readWrite
+                returned: default
+                uniqueness: none
+      responses:
+        '201':
+          description: Custom schema is created successfully.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/Schema'
+              example:
+                id: urn:sap:cloud:scim:schemas:extension:custom:2.0:CustomSchema
+                schemas:
+                - urn:ietf:params:scim:schemas:core:2.0:Schema
+                name: CustomSchema
+                description: Custom schema description
+                attributes:
+                - name: customAttribute
+                  type: string
+                  multiValued: false
+                  description: Custom attribute description
+                  required: false
+                  caseExact: false
+                  mutability: readWrite
+                  returned: default
+                  uniqueness: none
+        '400':
+          description: |
+            Wrong format or structure of the provided request body. Possible
+            reasons:
+
+            - The content of the body is not in valid format or cannot be
+            parsed.
+
+            - A field is missing in any of the schemas.
+
+            - A mandatory attribute is missing.
+
+            - The maximum count of custom schemas has been reached.
+
+            - The custom schema contains more than twenty attributes.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                value:
+                  status: 400
+                  schemas:
+                  - urn:ietf:params:scim:api:messages:2.0:Error
+                  detail: Invalid fields.
+        '409':
+          description: The created custom schema does not fulfill the uniqueness criteria for ID.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 409
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: Schema with id <id> already exists!
+        '500':
+          $ref: '#/components/responses/500'
+  /Schemas/{Id}:
+    get:
+      tags:
+      - Schemas
+      summary: Retrieves a specific schema.
+      description: Retrieves a specific schema by schema URN.
+      operationId: getSchema
+      parameters:
+      - name: Id
+        in: path
+        required: true
+        description: The ID of the schema to be retrieved.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The schema is retrieved successfully.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/Schema'
+        '400':
+          description: The provided identifier is not valid.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The schema with the provided ID does not exist.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: Schema  <schema_id> not found!
+        '500':
+          $ref: '#/components/responses/500'
+    delete:
+      tags:
+      - Schemas
+      summary: Deletes a specific custom schema.
+      description: Deletes a specific schema by schema URN.
+      operationId: deleteSchema
+      parameters:
+      - name: Id
+        in: path
+        required: true
+        description: The ID of the custom schema to be deleted.
+        schema:
+          type: string
+      responses:
+        '204':
+          description: The custom schema is deleted successfully.
+        '400':
+          description: The provided identifier is not valid.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The custom schema with the provided ID does not exist.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                schemas:
+                - urn:ietf:params:scim:api:messages:2.0:Error
+                detail: Schema <schema_id> not found!
+        '500':
+          $ref: '#/components/responses/500'
+  /Bulk:
+    post:
+      tags:
+      - Bulk
+      summary: Create, modify and delete user and group resources in bulk
+      description: |-
+        Executes multiple create, update and delete operations for users and groups in single request.
+        ## Limitations:
+          - `failsOnErrors` attribute is not supported.
+          - Maximum number of bulk operation per request is `100`
+          - Cross-references of new resources in and across operations is not allowed.
+            Each bulk operation should be independent
+      operationId: bulk
+      requestBody:
+        content:
+          application/scim+json:
+            schema:
+              $ref: '#/components/schemas/BulkRequest'
+            examples:
+              createMultipleUsers:
+                $ref: '#/components/examples/BulkCreateMultipleUsers'
+              bulkIndependentOperations:
+                $ref: '#/components/examples/BulkIndependentOperations'
+              updateMultipleUsersAttributes:
+                $ref: '#/components/examples/BulkUpdateMultipleUsersAttributes'
+              updateUserSingleAttribute:
+                $ref: '#/components/examples/UpdateUserSingleAttribute'
+              createMultipleGroups:
+                $ref: '#/components/examples/CreateMultipleGroups'
+              createAndUpdateMultipleGroups:
+                $ref: '#/components/examples/CreateAndUpdateMultipleGroups'
+              patchGroupAttribute:
+                $ref: '#/components/examples/PatchGroupAttribute'
+      responses:
+        '200':
+          description: The bulk request was executed successfully.
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/BulkResponse'
+              examples:
+                createMultipleUsers:
+                  $ref: '#/components/examples/BulkCreateMultipleUsersResponse'
+                independentOperations:
+                  $ref: '#/components/examples/BulkIndependentOperationsResponse'
+                updateMultipleUsersAttributes:
+                  $ref: '#/components/examples/UpdateMultipleUsersAttributesResponse'
+                updateUserSingleAttribute:
+                  $ref: '#/components/examples/UpdateUserSingleAttributeResponse'
+                createMultipleGroups:
+                  $ref: '#/components/examples/CreateMultipleGroupsResponse'
+                createAndUpdateMultipleGroups:
+                  $ref: '#/components/examples/CreateAndUpdateMultipleGroupsResponse'
+                patchGroupAttribute:
+                  $ref: '#/components/examples/PatchGroupAttributeResponse'
+        '413':
+          description: Maximum operations count exceeded
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                Max operations exceeded:
+                  summary: Maximum operations count exceeded
+                  value:
+                    status: '413'
+                    scimType: tooMany
+                    schemas:
+                    - urn:ietf:params:scim:api:messages:2.0:Error
+                    detail: Bulk operations count exceeded the maximum value supported.
+        '400':
+          description: The bulk request body format is invalid
+          content:
+            application/scim+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                Invalid path:
+                  summary: Invalid bulk operation path
+                  value:
+                  - status: '400'
+                    schemas:
+                    - urn:ietf:params:scim:api:messages:2.0:Error
+                    detail: 'Invalid operation with bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713. Reason: Invalid path endpoint for operation with bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713. Path should start with either Users or Groups endpoint.'
+                Cross-references unsupported:
+                  summary: Cross-references are not allowed
+                  value:
+                    status: '400'
+                    scimType: invalidValue
+                    schemas:
+                    - urn:ietf:params:scim:api:messages:2.0:Error
+                    detail: Bulk references across operations are not allowed.
+components:
+  schemas:
+    Address:
+      type: object
+      required:
+      - type
+      properties:
+        formatted:
+          type: string
+        primary:
+          type: boolean
+        country:
+          type: string
+        locality:
+          type: string
+        postalCode:
+          type: string
+        region:
+          type: string
+        streetAddress:
+          type: string
+        type:
+          type: string
+          enum:
+          - work
+          - home
+          - other
+    Email:
+      type: object
+      required:
+      - type
+      - value
+      properties:
+        type:
+          type: string
+          enum:
+          - work
+          - home
+          - other
+        value:
+          type: string
+        display:
+          type: string
+        primary:
+          type: boolean
+    PhoneNumber:
+      type: object
+      required:
+      - type
+      - value
+      properties:
+        type:
+          type: string
+          enum:
+          - work
+          - mobile
+          - other
+        value:
+          type: string
+        display:
+          type: string
+        primary:
+          type: boolean
+    Name:
+      type: object
+      required:
+      - familyName
+      - givenName
+      properties:
+        familyName:
+          type: string
+        givenName:
+          type: string
+        formatted:
+          type: string
+        middleName:
+          type: string
+        honorificPrefix:
+          type: string
+        honorificSuffix:
+          type: string
+    Im:
+      type: object
+      required:
+      - type
+      - value
+      properties:
+        type:
+          type: string
+          enum:
+          - aim
+          - gtalk
+          - icq
+          - xmpp
+          - msn
+          - skype
+          - qq
+          - yahoo
+        value:
+          type: string
+        display:
+          type: string
+        primary:
+          type: boolean
+    Photo:
+      type: object
+      required:
+      - type
+      - value
+      properties:
+        type:
+          type: string
+          enum:
+          - photo
+          - thumbnail
+        value:
+          type: string
+        display:
+          type: string
+        primary:
+          type: boolean
+    GroupRef:
+      type: object
+      required:
+      - type
+      - value
+      properties:
+        type:
+          type: string
+          enum:
+          - direct
+          - indirect
+        value:
+          type: string
+        display:
+          type: string
+        primary:
+          type: boolean
+    Entitlement:
+      type: object
+      required:
+      - type
+      - value
+      properties:
+        type:
+          type: string
+        value:
+          type: string
+        primary:
+          type: boolean
+    Role:
+      type: object
+      required:
+      - type
+      - value
+      properties:
+        type:
+          type: string
+        value:
+          type: string
+        primary:
+          type: boolean
+    X509Certificate:
+      type: object
+      required:
+      - type
+      - value
+      properties:
+        type:
+          type: string
+        value:
+          type: string
+        primary:
+          type: boolean
+    Meta:
+      type: object
+      properties:
+        created:
+          type: string
+          format: date-time
+        lastModified:
+          type: string
+          format: date-time
+        location:
+          type: string
+          description: resource location URI
+        resourceType:
+          type: string
+          enum:
+          - User
+          - Group
+          - Schema
+        version:
+          type: string
+      description: resource metadata
+    ExtendedMultivalue:
+      type: object
+      properties:
+        type:
+          type: string
+        value:
+          type: string
+        display:
+          type: string
+        primary:
+          type: boolean
+        verified:
+          type: boolean
+        verifiedTime:
+          type: string
+          format: date-time
+    CorporateGroup:
+      type: object
+      properties:
+        value:
+          type: string
+    ContactPreferences:
+      type: object
+      properties:
+        email:
+          type: string
+        telephone:
+          type: string
+      description: Specifies the contact preferences of the user. The allowed values for each preference is "yes", "no" or "unknown".
+    SocialIdentities:
+      type: object
+      properties:
+        socialId:
+          type: string
+        socialProvider:
+          type: string
+        dateOfLinking:
+          type: string
+          format: date-time
+    PasswordDetails:
+      type: object
+      properties:
+        loginTime:
+          type: string
+          format: date-time
+        failedLoginAttempts:
+          type: integer
+        setTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+        passwordLockedTime:
+          type: string
+          format: date-time
+        policy:
+          type: string
+    SAPExtension:
+      type: object
+      properties:
+        loginTime:
+          type: string
+          format: date-time
+        sourceSystem:
+          type: integer
+        sourceSystemId:
+          type: string
+        applicationId:
+          type: string
+          description: Specifies the id of the application from which the email template set is going to be chosen.
+        emailTemplateSetId:
+          type: string
+          description: Specifies the id of the email template set which is going to be used to create an activation mail message.
+        sendMail:
+          type: boolean
+          description: Specifies if an activation mail should be sent.
+        targetUrl:
+          type: string
+          description: Specifies an application link to which an user will be redirected after account activation.
+        mailVerified:
+          type: boolean
+          description: Specifies if the primary e-mail is verified.
+        userUuid:
+          type: string
+        userId:
+          type: string
+        sapUserName:
+          type: string
+        status:
+          type: string
+          description: Specifies if the user is created as active, inactive or new.
+        totpEnabled:
+          type: boolean
+          description: Specifies if time-based one-time password authentication is enabled.
+        webAuthEnabled:
+          type: boolean
+          description: Specifies if web authentication is enabled.
+        industry:
+          type: string
+        mfaEnabled:
+          type: boolean
+          description: Specifies if multi-factor authentication is enabled.
+        contactPreferences:
+          $ref: '#/components/schemas/ContactPreferences'
+        socialIdentities:
+          $ref: '#/components/schemas/SocialIdentities'
+        passwordDetails:
+          $ref: '#/components/schemas/PasswordDetails'
+        emails:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtendedMultivalue'
+          description: Values should be equal to the values of the emails attribute in the user core schema when creating or updating user.
+        corporateGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/CorporateGroup'
+          description: List of all corporate groups which the User is a member of.
+        phoneNumbers:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhoneNumber'
+          description: Values should be equal to the values of the phoneNumbers attribute in the user core schema when creating or updating user.
+        validFrom:
+          type: string
+          format: date-time
+          description: Specifies the time and date from which the user is valid.
+        validTo:
+          type: string
+          format: date-time
+          description: Specifies the time and date to which the user is valid.
+    Manager:
+      type: object
+      properties:
+        displayName:
+          type: string
+        value:
+          type: string
+        $ref:
+          type: string
+    EnterpriseUser:
+      type: object
+      properties:
+        division:
+          type: string
+        costCenter:
+          type: string
+        organization:
+          type: string
+        department:
+          type: string
+        employeeNumber:
+          type: string
+        manager:
+          $ref: '#/components/schemas/Manager'
+    User:
+      type: object
+      required:
+      - emails
+      - name
+      - schemas
+      - userName
+      properties:
+        id:
+          type: string
+          description: unique resource ID
+        externalId:
+          type: string
+          description: external unique resource ID defined by provisioning client
+        meta:
+          $ref: '#/components/schemas/Meta'
+        schemas:
+          type: array
+          items:
+            type: string
+        userName:
+          type: string
+        password:
+          type: string
+        name:
+          $ref: '#/components/schemas/Name'
+        displayName:
+          type: string
+        nickName:
+          type: string
+        profileUrl:
+          type: string
+        title:
+          type: string
+        userType:
+          type: string
+          description: Specifies the type of the user. The allowed values are "public",  "partner", "customer", "external", "onboardee" or "employee".
+        preferredLanguage:
+          type: string
+        locale:
+          type: string
+        timezone:
+          type: string
+        active:
+          type: boolean
+        emails:
+          type: array
+          items:
+            $ref: '#/components/schemas/Email'
+        phoneNumbers:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhoneNumber'
+        ims:
+          type: array
+          items:
+            $ref: '#/components/schemas/Im'
+        photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Photo'
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+        entitlements:
+          type: array
+          items:
+            $ref: '#/components/schemas/Entitlement'
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        x509Certificates:
+          type: array
+          items:
+            $ref: '#/components/schemas/X509Certificate'
+        urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:
+          type: object
+          $ref: '#/components/schemas/EnterpriseUser'
+        urn:ietf:params:scim:schemas:extension:sap:2.0:User:
+          type: object
+          $ref: '#/components/schemas/SAPExtension'
+    CreateUser:
+      type: object
+      required:
+      - emails
+      - name
+      - schemas
+      - userName
+      properties:
+        externalId:
+          type: string
+          enum:
+          - 34F578JK
+          description: external unique resource ID defined by provisioning client
+        schemas:
+          type: array
+          items:
+            type: string
+          example:
+          - urn:ietf:params:scim:schemas:core:2.0:User
+          - urn:ietf:params:scim:schemas:extension:sap:2.0:User
+          - urn:ietf:params:scim:schemas:extension:enterprise:2.0:User
+        userName:
+          type: string
+          enum:
+          - John
+        password:
+          type: string
+          enum:
+          - Abcd1234
+        name:
+          type: object
+          required:
+          - familyName
+          - givenName
+          properties:
+            familyName:
+              type: string
+              enum:
+              - Smith
+            givenName:
+              type: string
+              enum:
+              - Johny
+            formatted:
+              type: string
+              enum:
+              - Mr. John Smith I
+            middleName:
+              type: string
+              enum:
+              - Gilbert
+            honorificPrefix:
+              type: string
+              enum:
+              - Mr.
+            honorificSuffix:
+              type: string
+              enum:
+              - II
+        displayName:
+          type: string
+          enum:
+          - Mr. John
+        nickName:
+          type: string
+          enum:
+          - Johny10
+        profileUrl:
+          type: string
+          enum:
+          - https://www.google.com/john.smith
+        title:
+          type: string
+          enum:
+          - Software Developer
+        userType:
+          type: string
+          description: Specifies the type of the user. The allowed values are "public",  "partner", "customer", "external", "onboardee" or "employee".
+          enum:
+          - Employee
+        preferredLanguage:
+          type: string
+          enum:
+          - English
+        locale:
+          type: string
+          enum:
+          - EN
+        timezone:
+          type: string
+          enum:
+          - Europe/Sofia
+        active:
+          type: boolean
+        emails:
+          type: array
+          items:
+            type: object
+            required:
+            - type
+            - value
+            properties:
+              type:
+                type: string
+                enum:
+                - work
+                - home
+                - other
+              value:
+                type: string
+                enum:
+                - john.smith@sap-test.de
+              display:
+                type: string
+                enum:
+                - john.smith
+              primary:
+                type: boolean
+        phoneNumbers:
+          type: array
+          items:
+            type: object
+            required:
+            - type
+            - value
+            properties:
+              type:
+                type: string
+                enum:
+                - work
+                - mobile
+                - other
+              value:
+                type: string
+                enum:
+                - 555-555-5555
+              display:
+                type: string
+                enum:
+                - John's phone
+              primary:
+                type: boolean
+        photos:
+          type: array
+          items:
+            type: object
+            required:
+            - type
+            - value
+            properties:
+              type:
+                type: string
+                enum:
+                - photo
+                - thumbnail
+              value:
+                type: string
+                enum:
+                - https://www.facebook.com/john.smith
+              display:
+                type: string
+                enum:
+                - J.Smith
+              primary:
+                type: boolean
+        addresses:
+          type: array
+          items:
+            type: object
+            required:
+            - type
+            properties:
+              formatted:
+                type: string
+                enum:
+                - 8 Europa Str.
+              primary:
+                type: boolean
+              country:
+                type: string
+                enum:
+                - BG
+              locality:
+                type: string
+                enum:
+                - Sofia
+              postalCode:
+                type: string
+                enum:
+                - '1000'
+              region:
+                type: string
+                enum:
+                - SA
+              streetAddress:
+                type: string
+                enum:
+                - Europa Str.
+              type:
+                type: string
+                enum:
+                - work
+                - home
+                - other
+        entitlements:
+          type: array
+          items:
+            type: object
+            required:
+            - type
+            - value
+            properties:
+              type:
+                type: string
+                enum:
+                - work
+              value:
+                type: string
+                enum:
+                - random
+              primary:
+                type: boolean
+        roles:
+          type: array
+          items:
+            type: object
+            required:
+            - type
+            - value
+            properties:
+              type:
+                type: string
+                enum:
+                - Read Users
+              value:
+                type: string
+                enum:
+                - random
+              primary:
+                type: boolean
+        urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:
+          type: object
+          properties:
+            division:
+              type: string
+              enum:
+              - IDS
+            costCenter:
+              type: string
+              enum:
+              - '4130'
+            organization:
+              type: string
+              enum:
+              - IDStore
+            department:
+              type: string
+              enum:
+              - Administration
+            employeeNumber:
+              type: string
+              enum:
+              - '701984'
+            manager:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                  enum:
+                  - Manager
+                value:
+                  type: string
+                  enum:
+                  - 30ac69fe-5155-4d7f-8830-e9af6bf3e573
+                $ref:
+                  type: string
+                  enum:
+                  - http://localhost:8080/idds/scim/v2/Users/<manager>
+        urn:ietf:params:scim:schemas:extension:sap:2.0:User:
+          type: object
+          properties:
+            loginTime:
+              type: string
+              format: date-time
+            sourceSystem:
+              type: integer
+            sourceSystemId:
+              type: string
+              enum:
+              - 000T41F12
+            applicationId:
+              type: string
+              enum:
+              - 74P13R08
+              description: Specifies the id of the application from which the email template set is going to be chosen.
+            emailTemplateSetId:
+              type: string
+              enum:
+              - emailTemplateSetId
+              description: Specifies the id of the email template set which is going to be used to create an activation mail message.
+            sendMail:
+              type: boolean
+              description: Specifies if an activation mail should be sent.
+            targetUrl:
+              type: string
+              enum:
+              - https://google.com
+              description: Specifies an application link to which an user will be redirected after account activation.
+            mailVerified:
+              type: boolean
+              description: Specifies if the primary e-mail is verified.
+            userUuid:
+              type: string
+              enum:
+              - 30ac69fe-5155-4d7f-8830-e9af6bf3e401
+            userId:
+              type: string
+              enum:
+              - P000008
+            sapUserName:
+              type: string
+              enum:
+              - Random
+            status:
+              type: string
+              enum:
+              - active
+              description: Specifies if the user is created as active, inactive or new.
+            totpEnabled:
+              type: boolean
+              description: Specifies if time-based one-time password authentication is enabled.
+            webAuthEnabled:
+              type: boolean
+              description: Specifies if web authentication is enabled.
+            industry:
+              type: string
+              enum:
+              - Banking
+            mfaEnabled:
+              type: boolean
+              description: Specifies if multi-factor authentication is enabled.
+            contactPreferences:
+              type: object
+              properties:
+                email:
+                  type: string
+                  enum:
+                  - true
+                telephone:
+                  type: string
+                  enum:
+                  - true
+                  description: Specifies the contact preferences of the user. The allowed values for each preference is "yes", "no" or "unknown".
+            socialIdentities:
+              type: array
+              items:
+                type: object
+                properties:
+                  socialId:
+                    type: string
+                    enum:
+                    - 777K815BM
+                  socialProvider:
+                    type: string
+                    enum:
+                    - LINKEDIN
+                  dateOfLinking:
+                    type: string
+                    format: date-time
+            passwordDetails:
+              type: object
+              properties:
+                loginTime:
+                  type: string
+                  format: date-time
+                failedLoginAttempts:
+                  type: integer
+                setTime:
+                  type: string
+                  format: date-time
+                status:
+                  type: string
+                  enum:
+                  - enabled
+                passwordLockedTime:
+                  type: string
+                  format: date-time
+                policy:
+                  type: string
+                  enum:
+                  - policy
+            emails:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum:
+                    - work
+                  value:
+                    type: string
+                    enum:
+                    - john.smith@sap-test.de
+                  display:
+                    type: string
+                    enum:
+                    - john.smith
+                  primary:
+                    type: boolean
+                  verified:
+                    type: boolean
+                  verifiedTime:
+                    type: string
+                    format: date-time
+                description: Values should be equal to the values of the emails attribute in the user core schema when creating or updating user.
+            corporateGroups:
+              type: array
+              items:
+                type: object
+                properties:
+                  value:
+                    type: string
+                    enum:
+                    - admin
+              description: List of all corporate groups which the User is a member of.
+            phoneNumbers:
+              type: array
+              items:
+                type: object
+                required:
+                - type
+                - value
+                properties:
+                  type:
+                    type: string
+                    enum:
+                    - work
+                    - mobile
+                    - other
+                  value:
+                    type: string
+                    enum:
+                    - 555-555-5555
+                  display:
+                    type: string
+                    enum:
+                    - John's phone
+                  primary:
+                    type: boolean
+              description: Values should be equal to the values of the phoneNumbers attribute in the user core schema when creating or updating user.
+            validFrom:
+              type: string
+              format: date-time
+              description: Specifies the time and date from which the user is valid.
+            validTo:
+              type: string
+              format: date-time
+              description: Specifies the time and date to which the user is valid.
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: detail error message
+        schemas:
+          type: array
+          items:
+            type: string
+            enum:
+            - urn:ietf:params:scim:api:messages:2.0:Error
+        status:
+          type: integer
+          description: Error Code
+          format: int32
+    SearchResult:
+      type: object
+      properties:
+        Resources:
+          type: array
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/User'
+            - $ref: '#/components/schemas/Group'
+            - $ref: '#/components/schemas/Schema'
+        schemas:
+          type: array
+          description: A list of one or more URIs which are used to indicate the SCIM schemas that define the allowed attributes for a resource.
+          items:
+            type: string
+          example:
+          - urn:ietf:params:scim:api:messages:2.0:ListResponse
+        totalResults:
+          type: integer
+          description: Specifies the total number of results matching the query.
+          example: 100
+        itemsPerPage:
+          type: integer
+          description: Specifies the number of query results returned in a query response. page
+          example: 3
+        startIndex:
+          type: integer
+          description: The 1-based index of the first result in the current set of query results (only if parameter startIndex is used).
+          example: 1
+        startId:
+          type: string
+          description: Specifies the first entry of the query result (only if parameter startId is used).
+          example: initial
+        nextId:
+          type: string
+          description: Specifies the next user ID (that is, the ID of the first user on the next page). For example `<user id>` or `<end>`. The `<end>` value indicates that the last user of the total number of users matching the query is returned  (only if parameter startId is used).
+          example: x567890
+    Group:
+      type: object
+      properties:
+        id:
+          type: string
+        meta:
+          $ref: '#/components/schemas/Meta'
+        schemas:
+          type: array
+          items:
+            type: string
+          example:
+          - urn:ietf:params:scim:schemas:core:2.0:Group
+        displayName:
+          type: string
+          example: Administrators
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupMember'
+        externalId:
+          type: string
+          description: Unique and global identifier for the given group, see also RFC 7643, chapter 3.1 and Technology Guideline 16, requirement 3.
+        urn:sap:cloud:scim:schemas:extension:custom:2.0:Group:
+          $ref: '#/components/schemas/GroupExtension'
+    GroupMember:
+      type: object
+      properties:
+        value:
+          type: string
+        type:
+          type: string
+          enum:
+          - User
+          - Group
+        $ref:
+          type: string
+          example: <path to access member>
+    GroupExtension:
+      type: object
+      properties:
+        additionalId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+    BulkRequest:
+      type: object
+      required:
+      - schemas
+      - Operations
+      properties:
+        schemas:
+          type: array
+          description: The body of each request MUST contain the "schemas" attribute with the URI value of "urn:ietf:params:scim:api:messages:2.0:BulkRequest"
+          items:
+            type: string
+            enum:
+            - urn:ietf:params:scim:api:messages:2.0:BulkRequest
+        Operations:
+          type: array
+          description: Sequence of operations that create, modify or delete resource
+          items:
+            $ref: '#/components/schemas/BulkRequestOperation'
+    BulkRequestOperation:
+      type: object
+      required:
+      - method
+      - bulkId
+      - path
+      properties:
+        method:
+          type: string
+          description: The HTTP method of the current operation.
+          enum:
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+        bulkId:
+          type: string
+          description: The transient identifier of a newly created resource, unique within a bulk request and created by the client.  The bulkId serves as a surrogate resource id enabling clients to uniquely identify newly created resources in the response.
+        path:
+          type: string
+          description: The resource's relative path to the SCIM root If "method" is `POST`, the value must specify a resource type endpoint, e.g., **/Users** or **/Groups**, whereas all other `method` values must specify the path to a specific resource, e.g., **/Users/2819c223-7f76-453a-919d-413861904646**.
+        version:
+          type: string
+          description: the version of the resource
+        data:
+          type: object
+          description: The resource data as it would appear for a single `POST`, `PUT`, or `PATCH` operation.  REQUIRED in a request when "method" is `POST`, `PUT`, or `PATCH`
+          anyOf:
+          - $ref: '#/components/schemas/User'
+          - $ref: '#/components/schemas/Group'
+          - $ref: '#/components/schemas/PatchBody'
+    BulkResponse:
+      type: object
+      required:
+      - schemas
+      - Operations
+      properties:
+        schemas:
+          type: array
+          description: The body of each request MUST contain the "schemas" attribute with the URI value of "urn:ietf:params:scim:api:messages:2.0:BulkResponse"
+          items:
+            type: string
+            enum:
+            - urn:ietf:params:scim:api:messages:2.0:BulkResponse
+        Operations:
+          type: array
+          description: Sequence of operations that create, modify or delete resource
+          items:
+            $ref: '#/components/schemas/BulkResponseOperation'
+    BulkResponseOperation:
+      type: object
+      required:
+      - method
+      - bulkId
+      properties:
+        method:
+          type: string
+          description: The HTTP method of the current operation.
+          enum:
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+        bulkId:
+          type: string
+          description: The id of the processed bulk operation
+        location:
+          type: string
+          description: The resource endpoint URL. REQUIRED except in the event of a `POST` failure.
+        version:
+          type: string
+          description: the version of the resource
+        response:
+          $ref: '#/components/schemas/ErrorResponse'
+    PatchBody:
+      type: object
+      required:
+      - schemas
+      - Operations
+      properties:
+        schemas:
+          type: array
+          description: The body of each request MUST contain the "schemas" attribute with the URI value of "urn:ietf:params:scim:api:messages:2.0:PatchOp"
+          items:
+            type: string
+            enum:
+            - urn:ietf:params:scim:api:messages:2.0:PatchOp
+        Operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/PatchOperation'
+      example:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:PatchOp
+        Operations:
+        - op: add
+          value:
+            emails:
+            - value: john.smith@sap.com
+              type: home
+    PatchOperation:
+      type: object
+      required:
+      - op
+      properties:
+        op:
+          type: string
+          description: Indicates the operation to perform.
+          items:
+            type: string
+          enum:
+          - add
+          - remove
+          - replace
+        path:
+          type: string
+          description: An attribute path describing the target of the operation.
+          example: name.familyName
+        value:
+          $ref: '#/components/schemas/PatchOperationValue'
+    PatchOperationValue:
+      description: The payload to be applied on the target of the operation.
+    Attribute:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The attribute name. Should not exceed 20 characters (alphanumeric and underscore).
+        type:
+          type: string
+          description: The attribute data type.
+          enum:
+          - string
+          - boolean
+          - decimal
+          - integer
+          - dateTime
+          - binary
+          - reference
+          - complex
+        multivalued:
+          type: boolean
+        description:
+          type: string
+        required:
+          type: boolean
+        canonicalValues:
+          type: array
+          items:
+            type: string
+          description: A collection of suggested canonical values that MAY be used.
+        caseExact:
+          type: boolean
+        mutability:
+          type: string
+          enum:
+          - readOnly
+          - readWrite
+          - writeOnly
+          - immutable
+        returned:
+          type: string
+          enum:
+          - always
+          - never
+          - default
+          - request
+        uniqueness:
+          type: string
+          enum:
+          - none
+          - server
+          - global
+        referenceTypes:
+          description: This attribute is only applicable for attributes that are of type "reference".
+          type: array
+          items:
+            type: string
+        subAttributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attribute'
+      example:
+        name: CustomDecimal
+        type: decimal
+        multiValued: false
+        description: Super-secret internal system ID
+        required: false
+        caseExact: true
+        mutability: readWrite
+        returned: default
+        uniqueness: server
+    Schema:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        meta:
+          $ref: '#/components/schemas/Meta'
+        schemas:
+          type: array
+          items:
+            type: string
+          example:
+          - urn:ietf:params:scim:schemas:core:2.0:Schema
+        externalId:
+          type: string
+          description: Unique and global identifier for the given schema.
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attribute'
+  responses:
+    '500':
+      description: unexpected error
+      content:
+        application/scim+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 500
+            schemas:
+            - urn:ietf:params:scim:api:messages:2.0:Error
+            detail: unexpected error
+  examples:
+    DefaultGroupResponse:
+      summary: Default group response
+      value:
+        id: ddfb01a6-9f1d-4c41-8180-bd44d1678fd3
+        meta:
+          created: '2020-12-15T09:43:26.738Z'
+          lastModified: '2020-12-15T08:57:49.042Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Groups/ddfb01a6-9f1d-4c41-8180-bd44d1678fd3
+          resourceType: Group
+          version: d2a2081c-3743-4f2e-a3a4-c1d1bd43b547
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:Group
+        - urn:sap:cloud:scim:schemas:extension:custom:2.0:Group
+        displayName: Administrators
+        members:
+        - type: User
+          value: 8c575554-11ff-4506-8879-9e56caeeaeb8
+          $ref: https://agsecgqdp.accounts400.ondemand.com/scim/Users/8c575554-11ff-4506-8879-9e56caeeaeb8
+        externalId: externalId
+        urn:sap:cloud:scim:schemas:extension:custom:2.0:Group:
+          additionalId: otherId
+          name: Admins
+          description: Group for administrators
+    MembersValueGroupResponse:
+      summary: Members value group response
+      value:
+        id: ddfb01a6-9f1d-4c41-8180-bd44d1678fd3
+        meta:
+          created: '2020-12-15T09:43:26.738Z'
+          lastModified: '2020-12-15T08:57:49.042Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Groups/ddfb01a6-9f1d-4c41-8180-bd44d1678fd3
+          resourceType: Group
+          version: d2a2081c-3743-4f2e-a3a4-c1d1bd43b547
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:Group
+        - urn:sap:cloud:scim:schemas:extension:custom:2.0:Group
+        displayName: Administrators
+        members:
+          value: 8c575554-11ff-4506-8879-9e56caeeaeb8
+    ExcludedMembersGroupResponse:
+      summary: Group response excluding members
+      value:
+        id: ddfb01a6-9f1d-4c41-8180-bd44d1678fd3
+        meta:
+          created: '2020-12-15T09:43:26.738Z'
+          lastModified: '2020-12-15T08:57:49.042Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Groups/ddfb01a6-9f1d-4c41-8180-bd44d1678fd3
+          resourceType: Group
+          version: d2a2081c-3743-4f2e-a3a4-c1d1bd43b547
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:Group
+        - urn:sap:cloud:scim:schemas:extension:custom:2.0:Group
+        displayName: Administrators
+    MembersPageByIndex:
+      summary: Members page by startIndex and count
+      description: |-
+        A group with a specific number of members is returned due to members paging query. The following paging attributes are returned in the response:
+        | Value | Description |
+        |------------ | -------------|
+        | `members.cnt` | Specifies the total number of members in the group, for example: 10.|
+      value:
+        id: ddfb01a6-9f1d-4c41-8180-bd44d1678fd3
+        meta:
+          created: '2020-12-15T09:43:26.738Z'
+          lastModified: '2020-12-15T08:57:49.042Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Groups/ddfb01a6-9f1d-4c41-8180-bd44d1678fd3
+          resourceType: Group
+          version: d2a2081c-3743-4f2e-a3a4-c1d1bd43b547
+          members.cnt: 10
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:Group
+        - urn:sap:cloud:scim:schemas:extension:custom:2.0:Group
+        displayName: Administrators
+        members:
+        - type: User
+          value: 8c575554-11ff-4506-8879-9e56caeeaeb8
+          $ref: https://agsecgqdp.accounts400.ondemand.com/scim/Users/8c575554-11ff-4506-8879-9e56caeeaeb8
+        - type: User
+          value: b35e0548-3d59-4729-9704-bec8471387a3
+          $ref: https://agsecgqdp.accounts400.ondemand.com/scim/Users/b35e0548-3d59-4729-9704-bec8471387a3
+        externalId: externalId
+        urn:sap:cloud:scim:schemas:extension:custom:2.0:Group:
+          additionalId: otherId
+          name: Admins
+          description: Group for administrators
+    MembersPageById:
+      summary: Members page by startId and count
+      description: |-
+        A group with a specific number of members is returned due to members paging query. The following paging attributes are returned in the response:
+        | Value | Description |
+        |------------ | -------------|
+        | `members.cnt` | Specifies the total number of members in the group, for example: 10.|
+        | `members.nextId` | Specifies the next member ID (that is, the ID of the first member on the next page). |
+      value:
+        id: ddfb01a6-9f1d-4c41-8180-bd44d1678fd3
+        meta:
+          created: '2020-12-15T09:43:26.738Z'
+          lastModified: '2020-12-15T08:57:49.042Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Groups/ddfb01a6-9f1d-4c41-8180-bd44d1678fd3
+          resourceType: Group
+          version: d2a2081c-3743-4f2e-a3a4-c1d1bd43b547
+          members.cnt: 10
+          members.nextId: 742b8dd3-11a4-4a72-ac51-5744aa825ec2
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:Group
+        - urn:sap:cloud:scim:schemas:extension:custom:2.0:Group
+        displayName: Administrators
+        members:
+        - type: User
+          value: 8c575554-11ff-4506-8879-9e56caeeaeb8
+          $ref: https://agsecgqdp.accounts400.ondemand.com/scim/Users/8c575554-11ff-4506-8879-9e56caeeaeb8
+        - type: User
+          value: b35e0548-3d59-4729-9704-bec8471387a3
+          $ref: https://agsecgqdp.accounts400.ondemand.com/scim/Users/b35e0548-3d59-4729-9704-bec8471387a3
+        externalId: externalId
+        urn:sap:cloud:scim:schemas:extension:custom:2.0:Group:
+          additionalId: otherId
+          name: Admins
+          description: Group for administrators
+    DefaultUserResponse:
+      summary: Default user response
+      value:
+        id: 4609edbc-679e-428b-a06d-11e1f57443aa
+        externalId: user1
+        meta:
+          created: '2020-10-26T16:03:49Z'
+          lastModified: '2020-10-26T16:03:49Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Users/4609edbc-679e-428b-a06d-11e1f57443aa
+          version: 0e7c79a2-bfc7-4080-8a75-bc2e4f00af26
+          resourceType: User
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:User
+        - urn:ietf:params:scim:schemas:extension:enterprise:2.0:User
+        - urn:ietf:params:scim:schemas:extension:sap:2.0:User
+        userName: user1
+        name:
+          formatted: Mr John Doe I
+          familyName: user1
+          givenName: John
+          middleName: Doe
+          honorificPrefix: Mr.
+          honorificSuffix: I
+        displayName: John Doe
+        nickName: Johnie
+        profileUrl: https://www.sap.com
+        title: King
+        userType: Employee
+        timezone: Europe/Sofia
+        active: true
+        groups:
+        - value: 268b8b95-3db6-47be-9498-b560095bb2f5
+          display: displayName1
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/268b8b95-3db6-47be-9498-b560095bb2f5
+        - value: 268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e
+          display: displayName2
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e
+        - value: 3477f3e7-fcc6-43cc-a335-1a83ca01f007
+          display: displayName2
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/3477f3e7-fcc6-43cc-a335-1a83ca01f007
+        emails:
+        - value: john.doe@sap.com
+          display: John Doe
+          primary: true
+          type: work
+        phoneNumbers:
+        - value: 555-123-456
+          primary: false
+          type: work
+        - value: 555-123-333
+          primary: true
+          type: mobile
+        urn:ietf:params:scim:schemas:extension:sap:2.0:User:
+          userId: P000000
+          userUuid: 4609edbc-679e-428b-a06d-11e1f57443aa
+          loginTime: '2020-10-26T10:54:59Z'
+          sourceSystem: 15
+          sourceSystemId: sourceSystem1
+          industry: Chemicals
+          status: active
+          passwordDetails:
+            loginTime: '2020-10-26T10:54:59Z'
+            failedLoginAttempts: 0
+            setTime: '2020-10-22T07:49:38Z'
+            status: enabled
+            policy: https://accounts.sap.com/policy/passwords/sap/enterprise/1.0
+          corporateGroups:
+          - value: string
+        urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:
+          division: X
+          manager:
+            value: d478473e-af5f-45dc-977c-8447313216dc
+            $ref: https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc
+            displayName: James
+          costCenter: '4130'
+          organization: Manufacturing company
+          department: Marketing
+          employeeNumber: '751988'
+    UserGroupsPageByIndex:
+      summary: Groups page by startIndex and count
+      description: |-
+        A user with a specific number of groups is returned due to groups paging query. The following paging attributes are returned in the response:
+        | Value | Description |
+        |------------ | -------------|
+        | `groups.cnt` | Specifies the total number of user's groups, for example: 10.|
+      value:
+        id: 4609edbc-679e-428b-a06d-11e1f57443aa
+        externalId: user1
+        meta:
+          created: '2020-10-26T16:03:49Z'
+          lastModified: '2020-10-26T16:03:49Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Users/4609edbc-679e-428b-a06d-11e1f57443aa
+          version: 0e7c79a2-bfc7-4080-8a75-bc2e4f00af26
+          resourceType: User
+          groups.cnt: 10
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:User
+        - urn:ietf:params:scim:schemas:extension:enterprise:2.0:User
+        - urn:ietf:params:scim:schemas:extension:sap:2.0:User
+        userName: user1
+        name:
+          formatted: Mr John Doe I
+          familyName: user1
+          givenName: John
+          middleName: Doe
+          honorificPrefix: Mr.
+          honorificSuffix: I
+        displayName: John Doe
+        nickName: Johnie
+        profileUrl: https://www.sap.com
+        title: King
+        userType: Employee
+        timezone: Europe/Sofia
+        active: true
+        groups:
+        - value: 268b8b95-3db6-47be-9498-b560095bb2f5
+          display: displayName1
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/268b8b95-3db6-47be-9498-b560095bb2f5
+        - value: 268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e
+          display: displayName2
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e
+        emails:
+        - value: john.doe@sap.com
+          display: John Doe
+          primary: true
+          type: work
+        phoneNumbers:
+        - value: 555-123-456
+          primary: false
+          type: work
+        - value: 555-123-333
+          primary: true
+          type: mobile
+        urn:ietf:params:scim:schemas:extension:sap:2.0:User:
+          userId: P000000
+          userUuid: 4609edbc-679e-428b-a06d-11e1f57443aa
+          loginTime: '2020-10-26T10:54:59Z'
+          sourceSystem: 15
+          sourceSystemId: sourceSystem1
+          passwordDetails:
+            loginTime: '2020-10-26T10:54:59Z'
+            failedLoginAttempts: 0
+            setTime: '2020-10-22T07:49:38Z'
+            status: enabled
+            policy: https://accounts.sap.com/policy/passwords/sap/enterprise/1.0
+        urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:
+          division: X
+          manager:
+            value: d478473e-af5f-45dc-977c-8447313216dc
+            $ref: https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc
+            displayName: James
+          costCenter: '4130'
+          organization: Manufacturing company
+          department: Marketing
+          employeeNumber: '751988'
+    UserGroupsPageById:
+      summary: Groups page by startId and count
+      description: |-
+        A user with a specific number of groups is returned due to groups paging query. The following paging attributes are returned in the response:
+        | Value | Description |
+        |------------ | -------------|
+        | `groups.cnt` | Specifies the total number of user's groups, for example: 10.|
+        | `groups.nextId` | Specifies the next group ID (that is, the ID of the first group on the next page). |
+      value:
+        id: 4609edbc-679e-428b-a06d-11e1f57443aa
+        externalId: user1
+        meta:
+          created: '2020-10-26T16:03:49Z'
+          lastModified: '2020-10-26T16:03:49Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Users/4609edbc-679e-428b-a06d-11e1f57443aa
+          version: 0e7c79a2-bfc7-4080-8a75-bc2e4f00af26
+          resourceType: User
+          groups.cnt: 10
+          groups.nextId: 3477f3e7-fcc6-43cc-a335-1a83ca01f007
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:User
+        - urn:ietf:params:scim:schemas:extension:enterprise:2.0:User
+        - urn:ietf:params:scim:schemas:extension:sap:2.0:User
+        userName: user1
+        name:
+          formatted: Mr John Doe I
+          familyName: user1
+          givenName: John
+          middleName: Doe
+          honorificPrefix: Mr.
+          honorificSuffix: I
+        displayName: John Doe
+        nickName: Johnie
+        profileUrl: https://www.sap.com
+        title: King
+        userType: Employee
+        timezone: Europe/Sofia
+        active: true
+        groups:
+        - value: 268b8b95-3db6-47be-9498-b560095bb2f5
+          display: displayName1
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/268b8b95-3db6-47be-9498-b560095bb2f5
+        - value: 268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e
+          display: displayName2
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e
+        emails:
+        - value: john.doe@sap.com
+          display: John Doe
+          primary: true
+          type: work
+        phoneNumbers:
+        - value: 555-123-456
+          primary: false
+          type: work
+        - value: 555-123-333
+          primary: true
+          type: mobile
+        urn:ietf:params:scim:schemas:extension:sap:2.0:User:
+          userId: P000000
+          userUuid: 4609edbc-679e-428b-a06d-11e1f57443aa
+          loginTime: '2020-10-26T10:54:59Z'
+          sourceSystem: 15
+          sourceSystemId: sourceSystem1
+          passwordDetails:
+            loginTime: '2020-10-26T10:54:59Z'
+            failedLoginAttempts: 0
+            setTime: '2020-10-22T07:49:38Z'
+            status: enabled
+            policy: https://accounts.sap.com/policy/passwords/sap/enterprise/1.0
+        urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:
+          division: X
+          manager:
+            value: d478473e-af5f-45dc-977c-8447313216dc
+            $ref: https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc
+            displayName: James
+          costCenter: '4130'
+          organization: Manufacturing company
+          department: Marketing
+          employeeNumber: '751988'
+    EmailsValuesAttributesUserResponse:
+      summary: Emails values attributes user response
+      value:
+        id: 4609edbc-679e-428b-a06d-11e1f57443aa
+        meta:
+          created: '2020-10-26T16:03:49Z'
+          lastModified: '2020-10-26T16:03:49Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Users/4609edbc-679e-428b-a06d-11e1f57443aa
+          version: 0e7c79a2-bfc7-4080-8a75-bc2e4f00af26
+          resourceType: User
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:User
+        - urn:ietf:params:scim:schemas:extension:enterprise:2.0:User
+        - urn:ietf:params:scim:schemas:extension:sap:2.0:User
+        active: true
+        emails:
+        - value: dona.moore@sap.com
+          primary: true
+        urn:ietf:params:scim:schemas:extension:sap:2.0:User:
+          emails:
+          - value: dona.moore@sap.com
+            primary: true
+    AddressesValuesAttributesUserResponse:
+      summary: Addresses values attributes user response
+      value:
+        id: 4609edbc-679e-428b-a06d-11e1f57443aa
+        meta:
+          created: '2020-10-26T16:03:49Z'
+          lastModified: '2020-10-26T16:03:49Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Users/4609edbc-679e-428b-a06d-11e1f57443aa
+          version: 0e7c79a2-bfc7-4080-8a75-bc2e4f00af26
+          resourceType: User
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:User
+        - urn:ietf:params:scim:schemas:extension:enterprise:2.0:User
+        - urn:ietf:params:scim:schemas:extension:sap:2.0:User
+        active: true
+        addresses:
+        - streetAddress: string
+          locality: string
+          region: string
+          postalCode: string
+          country: string
+          type: string
+          primary: true
+        urn:ietf:params:scim:schemas:extension:sap:2.0:User:
+          addresses:
+          - streetAddress: string
+            streetAddress2: string
+            locality: string
+            region: string
+            postalCode: string
+            country: string
+            type: string
+            primary: true
+    FullyQualifiedNameAttributesUserResponse:
+      summary: Fully qualified name attribute user response
+      value:
+        id: 4609edbc-679e-428b-a06d-11e1f57443aa
+        meta:
+          created: '2020-10-26T16:03:49Z'
+          lastModified: '2020-10-26T16:03:49Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Users/4609edbc-679e-428b-a06d-11e1f57443aa
+          version: 0e7c79a2-bfc7-4080-8a75-bc2e4f00af26
+          resourceType: User
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:User
+        - urn:ietf:params:scim:schemas:extension:enterprise:2.0:User
+        - urn:ietf:params:scim:schemas:extension:sap:2.0:User
+        active: true
+        name:
+          formatted: Ms Dona Moore I
+          familyName: Moore
+          givenName: Dona
+          middleName: C
+          honorificPrefix: Ms.
+          honorificSuffix: I
+    FewAttributesUserResponse:
+      summary: Subset of attributes user response
+      value:
+        id: 4609edbc-679e-428b-a06d-11e1f57443aa
+        meta:
+          created: '2020-10-26T16:03:49Z'
+          lastModified: '2020-10-26T16:03:49Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Users/4609edbc-679e-428b-a06d-11e1f57443aa
+          version: 0e7c79a2-bfc7-4080-8a75-bc2e4f00af26
+          resourceType: User
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:User
+        - urn:ietf:params:scim:schemas:extension:enterprise:2.0:User
+        - urn:ietf:params:scim:schemas:extension:sap:2.0:User
+        active: true
+        name:
+          formatted: Ms Dona Moore I
+          familyName: Moore
+          givenName: Dona
+          middleName: C
+          honorificPrefix: Ms.
+          honorificSuffix: I
+        displayName: Dona Moore
+        emails:
+        - value: dona.moore@sap.com
+          primary: true
+        urn:ietf:params:scim:schemas:extension:sap:2.0:User:
+          emails:
+          - value: dona.moore@sap.com
+            primary: true
+    ExcludedAttributesEmailsUserResponse:
+      summary: Excluded attributes emails user response
+      value:
+        id: 4609edbc-679e-428b-a06d-11e1f57443aa
+        externalId: user1
+        meta:
+          created: '2020-10-26T16:03:49Z'
+          lastModified: '2020-10-26T16:03:49Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Users/4609edbc-679e-428b-a06d-11e1f57443aa
+          version: 0e7c79a2-bfc7-4080-8a75-bc2e4f00af26
+          resourceType: User
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:User
+        - urn:ietf:params:scim:schemas:extension:enterprise:2.0:User
+        - urn:ietf:params:scim:schemas:extension:sap:2.0:User
+        userName: user1
+        name:
+          formatted: Ms Dona Moore I
+          familyName: Moore
+          givenName: Dona
+          middleName: C
+          honorificPrefix: Ms.
+          honorificSuffix: I
+        displayName: Dona Moore
+        nickName: Dona
+        profileUrl: https://www.sap.com
+        title: Queen
+        userType: Employee
+        timezone: Europe/Sofia
+        active: true
+        groups:
+        - value: 268b8b95-3db6-47be-9498-b560095bb2f5
+          display: displayName1
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/268b8b95-3db6-47be-9498-b560095bb2f5
+        - value: 268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e
+          display: displayName2
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e
+        - value: 3477f3e7-fcc6-43cc-a335-1a83ca01f007
+          display: displayName2
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/3477f3e7-fcc6-43cc-a335-1a83ca01f007
+        phoneNumbers:
+        - value: 555-123-456
+          primary: false
+          type: work
+        - value: 555-123-333
+          primary: true
+          type: mobile
+        urn:ietf:params:scim:schemas:extension:sap:2.0:User:
+          userId: P000000
+          userUuid: 4609edbc-679e-428b-a06d-11e1f57443aa
+          loginTime: '2020-10-26T10:54:59Z'
+          sourceSystem: 15
+          sourceSystemId: sourceSystem1
+          passwordDetails:
+            loginTime: '2020-10-26T10:54:59Z'
+            failedLoginAttempts: 0
+            setTime: '2020-10-22T07:49:38Z'
+            status: enabled
+            policy: https://accounts.sap.com/policy/passwords/sap/enterprise/1.0
+        urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:
+          division: X
+          manager:
+            value: d478473e-af5f-45dc-977c-8447313216dc
+            $ref: https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc
+          costCenter: '4130'
+          organization: Manufacturing company
+          department: Marketing
+          employeeNumber: '751988'
+    ExcludedAttributesNameUserResponse:
+      summary: Excluded attributes name user response
+      value:
+        id: 4609edbc-679e-428b-a06d-11e1f57443aa
+        externalId: user1
+        meta:
+          created: '2020-10-26T16:03:49Z'
+          lastModified: '2020-10-26T16:03:49Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Users/4609edbc-679e-428b-a06d-11e1f57443aa
+          version: 0e7c79a2-bfc7-4080-8a75-bc2e4f00af26
+          resourceType: User
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:User
+        - urn:ietf:params:scim:schemas:extension:enterprise:2.0:User
+        - urn:ietf:params:scim:schemas:extension:sap:2.0:User
+        userName: user1
+        displayName: Dona Moore
+        nickName: Dona
+        profileUrl: https://www.sap.com
+        title: Queen
+        userType: Employee
+        timezone: Europe/Sofia
+        active: true
+        groups:
+        - value: 268b8b95-3db6-47be-9498-b560095bb2f5
+          display: displayName1
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/268b8b95-3db6-47be-9498-b560095bb2f5
+        - value: 268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e
+          display: displayName2
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e
+        - value: 3477f3e7-fcc6-43cc-a335-1a83ca01f007
+          display: displayName2
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/3477f3e7-fcc6-43cc-a335-1a83ca01f007
+        emails:
+        - value: dona.moore@sap.com
+          display: Dona Moore
+          primary: true
+          type: work
+        phoneNumbers:
+        - value: 555-123-456
+          primary: false
+          type: work
+        - value: 555-123-333
+          primary: true
+          type: mobile
+        urn:ietf:params:scim:schemas:extension:sap:2.0:User:
+          userId: P000000
+          userUuid: 4609edbc-679e-428b-a06d-11e1f57443aa
+          loginTime: '2020-10-26T10:54:59Z'
+          sourceSystem: 15
+          sourceSystemId: sourceSystem1
+          passwordDetails:
+            loginTime: '2020-10-26T10:54:59Z'
+            failedLoginAttempts: 0
+            setTime: '2020-10-22T07:49:38Z'
+            status: enabled
+            policy: https://accounts.sap.com/policy/passwords/sap/enterprise/1.0
+        urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:
+          division: X
+          manager:
+            value: d478473e-af5f-45dc-977c-8447313216dc
+            $ref: https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc
+          costCenter: '4130'
+          organization: Manufacturing company
+          department: Marketing
+          employeeNumber: '751988'
+    ExcludedFewAttributesUserResponse:
+      summary: Excluded subset of attributes user response
+      value:
+        id: 4609edbc-679e-428b-a06d-11e1f57443aa
+        externalId: user1
+        meta:
+          created: '2020-10-26T16:03:49Z'
+          lastModified: '2020-10-26T16:03:49Z'
+          location: https://agsecgqdp.accounts400.ondemand.com/scim/Users/4609edbc-679e-428b-a06d-11e1f57443aa
+          version: 0e7c79a2-bfc7-4080-8a75-bc2e4f00af26
+          resourceType: User
+        schemas:
+        - urn:ietf:params:scim:schemas:core:2.0:User
+        - urn:ietf:params:scim:schemas:extension:enterprise:2.0:User
+        - urn:ietf:params:scim:schemas:extension:sap:2.0:User
+        userName: user1
+        nickName: Dona
+        profileUrl: https://www.sap.com
+        title: Queen
+        userType: Employee
+        timezone: Europe/Sofia
+        active: true
+        groups:
+        - value: 268b8b95-3db6-47be-9498-b560095bb2f5
+          display: displayName1
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/268b8b95-3db6-47be-9498-b560095bb2f5
+        - value: 268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e
+          display: displayName2
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e
+        - value: 3477f3e7-fcc6-43cc-a335-1a83ca01f007
+          display: displayName2
+          primary: false
+          $ref: https://tenant.accounts.ondemand.com/scim/Users/3477f3e7-fcc6-43cc-a335-1a83ca01f007
+        phoneNumbers:
+        - value: 555-123-456
+          primary: false
+          type: work
+        - value: 555-123-333
+          primary: true
+          type: mobile
+        urn:ietf:params:scim:schemas:extension:sap:2.0:User:
+          userId: P000000
+          userUuid: 4609edbc-679e-428b-a06d-11e1f57443aa
+          loginTime: '2020-10-26T10:54:59Z'
+          sourceSystem: 15
+          sourceSystemId: sourceSystem1
+          passwordDetails:
+            loginTime: '2020-10-26T10:54:59Z'
+            failedLoginAttempts: 0
+            setTime: '2020-10-22T07:49:38Z'
+            status: enabled
+            policy: https://accounts.sap.com/policy/passwords/sap/enterprise/1.0
+        urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:
+          division: X
+          manager:
+            value: d478473e-af5f-45dc-977c-8447313216dc
+            $ref: https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc
+          costCenter: '4130'
+          organization: Manufacturing company
+          department: Marketing
+          employeeNumber: '751988'
+    BulkCreateMultipleUsers:
+      summary: Create multiple users
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkRequest
+        Operations:
+        - method: POST
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          path: /Users
+          data:
+            schemas:
+            - urn:ietf:params:scim:schemas:core:2.0:User
+            userName: johnsmith
+            name:
+              familyName: Smith
+              givenName: John
+            displayName: John Smith
+            active: true
+            emails:
+            - value: john.smith@example.com
+              primary: true
+              type: home
+        - method: POST
+          bulkId: 11020828-2bc8-45c4-876b-e32b6259fafc
+          path: /Users
+          data:
+            schemas:
+            - urn:ietf:params:scim:schemas:core:2.0:User
+            userName: georgeadams
+            name:
+              familyName: Adams
+              givenName: George
+            displayName: George Adams
+            active: true
+            emails:
+            - value: georgeadams@example.com
+              primary: true
+              type: home
+        - method: POST
+          bulkId: 52b3e095-62c2-4baf-8c0f-106a555537ff
+          path: /Users
+          data:
+            schemas:
+            - urn:ietf:params:scim:schemas:core:2.0:User
+            userName: jessicagrey
+            name:
+              familyName: Grey
+              givenName: Jessica
+            displayName: Jessica Grey
+            active: true
+            emails:
+            - value: jessicagrey@example.com
+              primary: true
+              type: home
+    BulkCreateMultipleUsersResponse:
+      summary: Create multiple users
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkResponse
+        Operations:
+        - method: POST
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          location: https://tenant.accounts.ondemand.com/scim/Users/2a658da4-7479-47a4-8604-c44ad229408b
+          status: '201'
+        - method: POST
+          bulkId: 11020828-2bc8-45c4-876b-e32b6259fafc
+          location: https://tenant.accounts.ondemand.com/scim/Users/721253a7-b280-4b65-8b44-74779126c7a4
+          status: '201'
+        - method: POST
+          bulkId: 52b3e095-62c2-4baf-8c0f-106a555537ff
+          location: https://tenant.accounts.ondemand.com/scim/Users/934d99ad-53bf-4ff3-ab51-f29349f07417
+          status: '201'
+    BulkIndependentOperations:
+      summary: Bulk Request with multiple independent operations
+      description: The body containt 3 bulk operations and should produce successful response. The seccond operation is not valid because it attempts to change userName to already taken one (by the first operation). The service will report this as error and proceeed with the next operation.
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkRequest
+        Operations:
+        - method: POST
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          path: /Users
+          data:
+            schemas:
+            - urn:ietf:params:scim:schemas:core:2.0:User
+            userName: johnsmith
+            name:
+              familyName: Smith
+              givenName: John
+            displayName: John Smith
+            active: true
+            emails:
+            - value: john.smith@example.com
+              primary: true
+              type: home
+        - method: PUT
+          bulkId: 11020828-2bc8-45c4-876b-e32b6259fafc
+          path: /Users/de26e12c-dc06-4735-a8e1-caa5085eb77a
+          data:
+            schemas:
+            - urn:ietf:params:scim:schemas:core:2.0:User
+            userName: johnsmith
+            name:
+              familyName: Smith
+              givenName: George
+            displayName: George Smith
+            active: true
+            emails:
+            - value: george.smith@example.com
+              primary: true
+              type: home
+        - method: DELETE
+          bulkId: 38a2612d-a59c-4b62-a25b-a97b2820cc60
+          path: /Groups/41c2a204-e919-4605-810b-a0ce44f23815
+    BulkIndependentOperationsResponse:
+      summary: Bulk Request with multiple independent operations
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkResponse
+        Operations:
+        - method: POST
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          location: https://tenant.accounts.ondemand.com/scim/Users/2a658da4-7479-47a4-8604-c44ad229408b
+          status: '201'
+        - method: PUT
+          bulkId: 11020828-2bc8-45c4-876b-e32b6259fafc
+          location: https://tenant.accounts.ondemand.com/scim/Users/de26e12c-dc06-4735-a8e1-caa5085eb77a
+          response:
+            status: '409'
+            scimType: uniqueness
+            schemas:
+            - urn:ietf:params:scim:api:messages:2.0:Error
+            detail: A user with the same userName already exists!
+          status: '409'
+        - method: DELETE
+          bulkId: 38a2612d-a59c-4b62-a25b-a97b2820cc60
+          location: https://tenant.accounts.ondemand.com/scim/Groups/41c2a204-e919-4605-810b-a0ce44f23815
+          status: '201'
+    BulkUpdateMultipleUsersAttributes:
+      summary: Update multiple users’ attributes
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkRequest
+        Operations:
+        - method: PUT
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          path: /Users/8ba62793-1d1b-46e7-a9aa-de192f20685e
+          data:
+            schemas:
+            - urn:ietf:params:scim:schemas:core:2.0:User
+            userName: johnsmith
+            name:
+              familyName: Smith
+              givenName: John
+            displayName: John Smith
+            active: true
+            emails:
+            - value: john.smith@example.com
+              primary: true
+              type: home
+        - method: PUT
+          bulkId: 52b3e095-62c2-4baf-8c0f-106a555537ff
+          path: /Users/0f0ed269-216d-44f5-b620-9820cd63de9f
+          data:
+            schemas:
+            - urn:ietf:params:scim:schemas:core:2.0:User
+            userName: jessicagrey
+            name:
+              familyName: Grey
+              givenName: Jessica
+            displayName: Jessica Grey
+            active: true
+            emails:
+            - value: jessicagreytest@example.com
+              primary: true
+              type: home
+    UpdateMultipleUsersAttributesResponse:
+      summary: Update multiple users’ attributes
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkResponse
+        Operations:
+        - method: PUT
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          location: https://tenant.accounts.ondemand.com/scim/Users/8ba62793-1d1b-46e7-a9aa-de192f20685e
+          status: '200'
+    UpdateUserSingleAttribute:
+      summary: Update user single attribute
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkRequest
+        Operations:
+        - method: PATCH
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          path: /Users/d465c814-e00c-4ce3-bc20-9457f0751eb2
+          data:
+            Operations:
+            - op: replace
+              path: active
+              value: true
+            schemas:
+            - urn:ietf:params:scim:api:messages:2.0:PatchOp
+    UpdateUserSingleAttributeResponse:
+      summary: Update user single attribute
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkResponse
+        Operations:
+        - method: PATCH
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          location: https://tenant.accounts.ondemand.com/scim/Users/d465c814-e00c-4ce3-bc20-9457f0751eb2
+          status: '204'
+    CreateMultipleGroups:
+      summary: Create multiple groups
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkRequest
+        Operations:
+        - method: POST
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          path: /Groups
+          data:
+            schemas:
+            - urn:ietf:params:scim:schemas:core:2.0:Group
+            displayName: Administrators
+            members:
+            - value: e669fe4b-13b0-4c08-bbed-668c91efa967
+              type: User
+              $ref: <path to access member>
+        - method: POST
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d714
+          path: /Groups
+          data:
+            schemas:
+            - urn:ietf:params:scim:schemas:core:2.0:Group
+            displayName: Cloud Users
+            members:
+            - value: e669fe4b-13b0-4c08-bbed-668c91efa967
+              type: User
+              $ref: <path to access member>
+            - value: 0f0ed269-216d-44f5-b620-9820cd63de9f
+              type: User
+              $ref: <path to access member>
+    CreateMultipleGroupsResponse:
+      summary: Create multiple groups
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkResponse
+        Operations:
+        - method: POST
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          location: https://tenant.accounts.ondemand.com/scim/Groups/02ff5778-e21a-42e5-a176-88917b538194
+          status: '201'
+        - method: POST
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d714
+          location: https://tenant.accounts.ondemand.com/scim/Groups/a6a1bb79-2299-4ba8-a1c3-035451088332
+          status: '201'
+    CreateAndUpdateMultipleGroups:
+      summary: Create and update multiple groups
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkRequest
+        Operations:
+        - method: PUT
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          path: /Groups/7bab5609-50d2-4fdf-8b5c-7c7d855ae755
+          data:
+            schemas:
+            - urn:ietf:params:scim:schemas:core:2.0:Group
+            displayName: Administrators
+            members:
+            - value: e669fe4b-13b0-4c08-bbed-668c91efa967
+              type: User
+              $ref: <path to access member>
+            - value: 0f0ed269-216d-44f5-b620-9820cd63de9f
+              type: User
+              $ref: <path to access member>
+        - method: POST
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d714
+          path: /Groups
+          data:
+            schemas:
+            - urn:ietf:params:scim:schemas:core:2.0:Group
+            displayName: Cloud Users
+            members:
+            - value: e669fe4b-13b0-4c08-bbed-668c91efa967
+              type: User
+              $ref: <path to access member>
+            - value: 0f0ed269-216d-44f5-b620-9820cd63de9f
+              type: User
+              $ref: <path to access member>
+    CreateAndUpdateMultipleGroupsResponse:
+      summary: Create and update multiple groups
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkResponse
+        Operations:
+        - method: PUT
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          location: https://tenant.accounts.ondemand.com/scim/Groups/7bab5609-50d2-4fdf-8b5c-7c7d855ae755
+          status: '200'
+        - method: POST
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d714
+          location: https://tenant.accounts.ondemand.com/scim/Groups/149f0e51-cfec-4dc6-a8df-51dd2034d9a7
+          status: '201'
+    PatchGroupAttribute:
+      summary: Patch Group Attribute
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkRequest
+        Operations:
+        - method: PATCH
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          path: /Groups/149a9d5a-b3cb-4019-8af2-209e2ac2a965
+          data:
+            Operations:
+            - op: replace
+              path: displayName
+              value: BulkAPIGroupNewName
+            schemas:
+            - urn:ietf:params:scim:api:messages:2.0:PatchOp
+    PatchGroupAttributeResponse:
+      summary: Patch Group Attribute
+      value:
+        schemas:
+        - urn:ietf:params:scim:api:messages:2.0:BulkResponse
+        Operations:
+        - method: PATCH
+          bulkId: 4ecf320f-7bfe-4f8b-91dc-f8f52322d713
+          location: https://tenant.accounts.ondemand.com/scim/Groups/149a9d5a-b3cb-4019-8af2-209e2ac2a965
+          status: '204'
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+    Certificate:
+      type: http
+      scheme: X.509
