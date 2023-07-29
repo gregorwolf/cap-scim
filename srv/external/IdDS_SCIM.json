@@ -255,7 +255,6 @@
                             "division": "X",
                             "manager": {
                               "value": "d478473e-af5f-45dc-977c-8447313216dc",
-                              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc",
                               "displayName": "James"
                             },
                             "costCenter": "4130",
@@ -346,7 +345,6 @@
                             "division": "X",
                             "manager": {
                               "value": "d478473e-af5f-45dc-977c-8447313216dc",
-                              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc",
                               "displayName": "James"
                             },
                             "costCenter": "4130",
@@ -1221,7 +1219,6 @@
                           "members": [
                             {
                               "value": "<member_id>",
-                              "$ref": "https://tenant.testaccounts.ondemand.com/scim/Users/<member_id>",
                               "type": "User"
                             }
                           ]
@@ -3972,8 +3969,7 @@
           "members": [
             {
               "type": "User",
-              "value": "8c575554-11ff-4506-8879-9e56caeeaeb8",
-              "$ref": "https://agsecgqdp.accounts400.ondemand.com/scim/Users/8c575554-11ff-4506-8879-9e56caeeaeb8"
+              "value": "8c575554-11ff-4506-8879-9e56caeeaeb8"
             }
           ],
           "externalId": "externalId",
@@ -4044,13 +4040,11 @@
           "members": [
             {
               "type": "User",
-              "value": "8c575554-11ff-4506-8879-9e56caeeaeb8",
-              "$ref": "https://agsecgqdp.accounts400.ondemand.com/scim/Users/8c575554-11ff-4506-8879-9e56caeeaeb8"
+              "value": "8c575554-11ff-4506-8879-9e56caeeaeb8"
             },
             {
               "type": "User",
-              "value": "b35e0548-3d59-4729-9704-bec8471387a3",
-              "$ref": "https://agsecgqdp.accounts400.ondemand.com/scim/Users/b35e0548-3d59-4729-9704-bec8471387a3"
+              "value": "b35e0548-3d59-4729-9704-bec8471387a3"
             }
           ],
           "externalId": "externalId",
@@ -4083,13 +4077,11 @@
           "members": [
             {
               "type": "User",
-              "value": "8c575554-11ff-4506-8879-9e56caeeaeb8",
-              "$ref": "https://agsecgqdp.accounts400.ondemand.com/scim/Users/8c575554-11ff-4506-8879-9e56caeeaeb8"
+              "value": "8c575554-11ff-4506-8879-9e56caeeaeb8"
             },
             {
               "type": "User",
-              "value": "b35e0548-3d59-4729-9704-bec8471387a3",
-              "$ref": "https://agsecgqdp.accounts400.ondemand.com/scim/Users/b35e0548-3d59-4729-9704-bec8471387a3"
+              "value": "b35e0548-3d59-4729-9704-bec8471387a3"
             }
           ],
           "externalId": "externalId",
@@ -4137,20 +4129,17 @@
             {
               "value": "268b8b95-3db6-47be-9498-b560095bb2f5",
               "display": "displayName1",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/268b8b95-3db6-47be-9498-b560095bb2f5"
+              "primary": false
             },
             {
               "value": "268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e",
               "display": "displayName2",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e"
+              "primary": false
             },
             {
               "value": "3477f3e7-fcc6-43cc-a335-1a83ca01f007",
               "display": "displayName2",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/3477f3e7-fcc6-43cc-a335-1a83ca01f007"
+              "primary": false
             }
           ],
           "emails": [
@@ -4198,7 +4187,6 @@
             "division": "X",
             "manager": {
               "value": "d478473e-af5f-45dc-977c-8447313216dc",
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc",
               "displayName": "James"
             },
             "costCenter": "4130",
@@ -4247,14 +4235,12 @@
             {
               "value": "268b8b95-3db6-47be-9498-b560095bb2f5",
               "display": "displayName1",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/268b8b95-3db6-47be-9498-b560095bb2f5"
+              "primary": false
             },
             {
               "value": "268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e",
               "display": "displayName2",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e"
+              "primary": false
             }
           ],
           "emails": [
@@ -4295,7 +4281,6 @@
             "division": "X",
             "manager": {
               "value": "d478473e-af5f-45dc-977c-8447313216dc",
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc",
               "displayName": "James"
             },
             "costCenter": "4130",
@@ -4345,14 +4330,12 @@
             {
               "value": "268b8b95-3db6-47be-9498-b560095bb2f5",
               "display": "displayName1",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/268b8b95-3db6-47be-9498-b560095bb2f5"
+              "primary": false
             },
             {
               "value": "268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e",
               "display": "displayName2",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e"
+              "primary": false
             }
           ],
           "emails": [
@@ -4393,7 +4376,6 @@
             "division": "X",
             "manager": {
               "value": "d478473e-af5f-45dc-977c-8447313216dc",
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc",
               "displayName": "James"
             },
             "costCenter": "4130",
@@ -4586,20 +4568,17 @@
             {
               "value": "268b8b95-3db6-47be-9498-b560095bb2f5",
               "display": "displayName1",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/268b8b95-3db6-47be-9498-b560095bb2f5"
+              "primary": false
             },
             {
               "value": "268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e",
               "display": "displayName2",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e"
+              "primary": false
             },
             {
               "value": "3477f3e7-fcc6-43cc-a335-1a83ca01f007",
               "display": "displayName2",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/3477f3e7-fcc6-43cc-a335-1a83ca01f007"
+              "primary": false
             }
           ],
           "phoneNumbers": [
@@ -4631,8 +4610,7 @@
           "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": {
             "division": "X",
             "manager": {
-              "value": "d478473e-af5f-45dc-977c-8447313216dc",
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc"
+              "value": "d478473e-af5f-45dc-977c-8447313216dc"
             },
             "costCenter": "4130",
             "organization": "Manufacturing company",
@@ -4670,20 +4648,17 @@
             {
               "value": "268b8b95-3db6-47be-9498-b560095bb2f5",
               "display": "displayName1",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/268b8b95-3db6-47be-9498-b560095bb2f5"
+              "primary": false
             },
             {
               "value": "268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e",
               "display": "displayName2",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e"
+              "primary": false
             },
             {
               "value": "3477f3e7-fcc6-43cc-a335-1a83ca01f007",
               "display": "displayName2",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/3477f3e7-fcc6-43cc-a335-1a83ca01f007"
+              "primary": false
             }
           ],
           "emails": [
@@ -4723,8 +4698,7 @@
           "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": {
             "division": "X",
             "manager": {
-              "value": "d478473e-af5f-45dc-977c-8447313216dc",
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc"
+              "value": "d478473e-af5f-45dc-977c-8447313216dc"
             },
             "costCenter": "4130",
             "organization": "Manufacturing company",
@@ -4761,20 +4735,17 @@
             {
               "value": "268b8b95-3db6-47be-9498-b560095bb2f5",
               "display": "displayName1",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/268b8b95-3db6-47be-9498-b560095bb2f5"
+              "primary": false
             },
             {
               "value": "268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e",
               "display": "displayName2",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/268b8b952fdc4453-38dc-406b-a9e1-3ec4d9d6a08e"
+              "primary": false
             },
             {
               "value": "3477f3e7-fcc6-43cc-a335-1a83ca01f007",
               "display": "displayName2",
-              "primary": false,
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/3477f3e7-fcc6-43cc-a335-1a83ca01f007"
+              "primary": false
             }
           ],
           "phoneNumbers": [
@@ -4806,8 +4777,7 @@
           "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": {
             "division": "X",
             "manager": {
-              "value": "d478473e-af5f-45dc-977c-8447313216dc",
-              "$ref": "https://tenant.accounts.ondemand.com/scim/Users/d478473e-af5f-45dc-977c-8447313216dc"
+              "value": "d478473e-af5f-45dc-977c-8447313216dc"
             },
             "costCenter": "4130",
             "organization": "Manufacturing company",
@@ -5162,8 +5132,7 @@
                 "members": [
                   {
                     "value": "e669fe4b-13b0-4c08-bbed-668c91efa967",
-                    "type": "User",
-                    "$ref": "<path to access member>"
+                    "type": "User"
                   }
                 ]
               }
@@ -5180,13 +5149,11 @@
                 "members": [
                   {
                     "value": "e669fe4b-13b0-4c08-bbed-668c91efa967",
-                    "type": "User",
-                    "$ref": "<path to access member>"
+                    "type": "User"
                   },
                   {
                     "value": "0f0ed269-216d-44f5-b620-9820cd63de9f",
-                    "type": "User",
-                    "$ref": "<path to access member>"
+                    "type": "User"
                   }
                 ]
               }
@@ -5235,13 +5202,11 @@
                 "members": [
                   {
                     "value": "e669fe4b-13b0-4c08-bbed-668c91efa967",
-                    "type": "User",
-                    "$ref": "<path to access member>"
+                    "type": "User"
                   },
                   {
                     "value": "0f0ed269-216d-44f5-b620-9820cd63de9f",
-                    "type": "User",
-                    "$ref": "<path to access member>"
+                    "type": "User"
                   }
                 ]
               }
@@ -5258,13 +5223,11 @@
                 "members": [
                   {
                     "value": "e669fe4b-13b0-4c08-bbed-668c91efa967",
-                    "type": "User",
-                    "$ref": "<path to access member>"
+                    "type": "User"
                   },
                   {
                     "value": "0f0ed269-216d-44f5-b620-9820cd63de9f",
-                    "type": "User",
-                    "$ref": "<path to access member>"
+                    "type": "User"
                   }
                 ]
               }
