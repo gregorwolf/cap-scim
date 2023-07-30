@@ -13,6 +13,10 @@
     "start": "npx cds run"
   },
   "devDependencies": {
-    "@sap-cloud-sdk/openapi-generator": "^3.3.0"
+    "@sap-cloud-sdk/openapi-generator": "^3.3.0",
+    "@cap-js/cds-typer": "^0"
+  },
+  "imports": {
+    "#cds-models/*": "./@cds-models/*/index.js"
   }
 }
